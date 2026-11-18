@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { tipos } from '../contenido.js';
+import { tipos, colorTipo } from '../contenido.js';
 import { datos, demo } from '../lib/datos.js';
 import Titulo from './Titulo.jsx';
 
@@ -66,7 +66,7 @@ export default function Catalogo({ params }) {
             <div className="foto foto--4x3">
               {p.imagenes.length
                 ? <div className="tira">{p.imagenes.map((src, i) => <img key={src} src={src} alt={`${p.nombre}, foto ${i + 1}`} loading="lazy" />)}</div>
-                : <span className="producto__sin serif" aria-hidden="true">{p.nombre[0]}</span>}
+                : <span className="producto__sin serif" aria-hidden="true" style={{ background: colorTipo[p.vendedor.tipo] }}>{p.nombre[0]}</span>}
               {p.agotado && <span className="etiqueta">Agotado</span>}
             </div>
             <div className="producto__cuerpo">

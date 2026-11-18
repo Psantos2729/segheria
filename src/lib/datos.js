@@ -112,7 +112,10 @@ const remoto = {
   async cambiarPass(pass) { ok(await sb.auth.updateUser({ password: pass })); },
   alRecuperar(cb) { const { data } = sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') cb(); }); return () => data.subscription.unsubscribe(); },
   /* Administración: las funciones SQL revisan en el servidor que seas admin (ver supabase.sql). */
-  async esAdmin() { const { data } = await sb.rpc('es_admin'); return data === true; },
+  async esAdmin() {
+    if (!(await sb.auth.getSession()).data.session) return false; // sin sesión no hay nada que preguntar
+    const { data } = await sb.rpc('es_admin'); return data === true;
+  },
   async adminPerfiles() { return ok(await sb.rpc('admin_perfiles')); },
   async adminAprobar(id, valor) { ok(await sb.rpc('admin_aprobar', { uid: id, valor })); },
   async adminReportes() { return ok(await sb.rpc('admin_reportes')); },

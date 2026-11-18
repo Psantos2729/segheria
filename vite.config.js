@@ -5,7 +5,7 @@ import { negocio as n } from './src/contenido.js';
 // Rellena título y descripción del <head> desde src/contenido.js
 const seo = () => ({
   name: 'seo-desde-contenido',
-  transformIndexHtml: (html) => html.replaceAll('__TITULO__', `${n.nombre} | ${n.tipo} en ${n.zona}, ${n.ciudad}`).replaceAll('__DESCRIPCION__', n.descripcion)
+  transformIndexHtml: (html) => html.replaceAll('__TITULO__', `${n.nombre} | ${n.tipo} en ${n.zona}, ${n.ciudad}`).replaceAll('__DESCRIPCION__', n.descripcion).replaceAll('__OG__', `${n.url}/fotos/og.webp`)
 });
 
 // base './' = funciona en GitHub Pages (subcarpeta) y en cualquier hosting

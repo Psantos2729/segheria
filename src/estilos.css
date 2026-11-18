@@ -203,3 +203,18 @@ p { text-wrap: pretty; }
 .reporte form { display: grid; gap: .75rem; }
 .mios__acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0 1rem; }
 .mios li { flex-wrap: wrap; }
+
+/* ---------- Reformas visuales ---------- */
+.marca img { width: 2.25rem; height: 2.25rem; }
+.marca { gap: .625rem; }
+.portada__fila { display: grid; grid-template-columns: 1fr 1fr; gap: var(--relleno); align-items: end; margin-top: 2rem; }
+.portada__fila .portada__lead { margin-top: 0; }
+.portada__foto { border-radius: var(--radio); }
+.portada__foto img { object-position: 62% 50%; transform-origin: 62% 50%; }
+.carrusel3d { height: clamp(360px, 52vw, 520px); margin-top: 2rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .portada__foto img { animation: acercar 14s ease-in-out infinite alternate; }
+  @keyframes acercar { from { transform: scale(1); } to { transform: scale(1.08); } }
+}
+@media (max-width: 59.99em) { .portada__fila { grid-template-columns: 1fr; } }
+.pildoras { margin-top: 2.5rem; }
