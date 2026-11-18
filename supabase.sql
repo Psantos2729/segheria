@@ -81,3 +81,52 @@ grant execute on function es_admin(), admin_perfiles(), admin_aprobar(uuid, bool
 
 -- Hazte administrador: cambia el correo por el tuyo y corre solo esta línea.
 -- insert into admins select id from auth.users where email = 'TU_CORREO@gmail.com';
+
+-- ---------- Versión 2: agotado, varias fotos, editar, límite, reportes ----------
+alter table productos add column agotado boolean not null default false;
+alter table productos add column imagenes text[] not null default '{}' check (cardinality(imagenes) <= 4);
+update productos set imagenes = array[imagen] where imagen is not null;
+alter table productos drop column imagen;
+
+grant update (nombre, descripcion, precio, imagenes, agotado) on productos to authenticated;
+create policy "editar lo propio" on productos for update using (vendedor = auth.uid()) with check (vendedor = auth.uid());
+
+-- Máximo 20 productos por vendedor.
+create function limite_productos() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if (select count(*) from productos where vendedor = new.vendedor) >= 20 then
+    raise exception 'Llegaste al límite de 20 productos.';
+  end if;
+  return new;
+end $$;
+create trigger limite before insert on productos for each row execute function limite_productos();
+
+-- Reportes: cualquiera puede enviar uno; solo el administrador los lee.
+create table reportes (
+  id uuid primary key default gen_random_uuid(),
+  producto uuid not null references productos on delete cascade,
+  motivo text not null check (length(motivo) between 3 and 300),
+  creado timestamptz not null default now()
+);
+alter table reportes enable row level security;
+grant insert on reportes to anon, authenticated;
+create policy "cualquiera reporta" on reportes for insert with check (true);
+
+create function admin_reportes() returns table (id uuid, producto uuid, producto_nombre text, negocio text, whatsapp text, motivo text, creado timestamptz)
+language plpgsql security definer set search_path = public as $$
+begin
+  if not es_admin() then raise exception 'no autorizado'; end if;
+  return query select r.id, r.producto, p.nombre, f.nombre_negocio, f.whatsapp, r.motivo, r.creado
+    from reportes r join productos p on p.id = r.producto join profiles f on f.id = p.vendedor order by r.creado desc;
+end $$;
+
+-- borrar = true elimina el producto (y sus reportes); false solo descarta el reporte.
+create function admin_resolver(rid uuid, borrar boolean) returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not es_admin() then raise exception 'no autorizado'; end if;
+  if borrar then delete from productos where id = (select producto from reportes where id = rid);
+  else delete from reportes where id = rid; end if;
+end $$;
+
+revoke execute on function admin_reportes(), admin_resolver(uuid, boolean) from public, anon;
+grant execute on function admin_reportes(), admin_resolver(uuid, boolean) to authenticated;

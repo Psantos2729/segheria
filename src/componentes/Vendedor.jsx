@@ -1,22 +1,24 @@
 import { useEffect, useState } from 'react';
 import { tipos, torres } from '../contenido.js';
-import { datos, demo } from '../lib/datos.js';
+import { datos, demo, MAX_FOTOS } from '../lib/datos.js';
 import Titulo from './Titulo.jsx';
 
 const Campo = ({ etiqueta, children }) => <label className="campo"><span>{etiqueta}</span>{children}</label>;
 const formAObj = (e) => Object.fromEntries(new FormData(e.currentTarget));
 
 function Acceso({ alEntrar }) {
-  const [nuevo, setNuevo] = useState(false);
+  const [modo, setModo] = useState('entrar'); // entrar | nuevo | olvido
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const cambiar = (m) => { setModo(m); setError(''); setAviso(''); };
 
   async function enviar(e) {
     e.preventDefault(); setError(''); setOcupado(true);
     const f = formAObj(e);
     try {
-      if (nuevo) {
+      if (modo === 'olvido') { await datos.recuperar(f.email); setAviso('Si ese correo tiene cuenta, te enviamos un enlace para cambiar la contraseña.'); return; }
+      if (modo === 'nuevo') {
         const { email, pass, nombre_negocio, tipo, torre, apto, whatsapp } = f;
         const r = await datos.registrar({ email, pass, perfil: { nombre_negocio, tipo, torre: Number(torre), apto: apto.trim(), whatsapp } });
         if (r.aviso) { setAviso(r.aviso); return; }
@@ -25,11 +27,12 @@ function Acceso({ alEntrar }) {
     } catch (err) { setError(err.message || 'Algo salió mal. Revisa los datos.'); } finally { setOcupado(false); }
   }
 
+  const nuevo = modo === 'nuevo';
   return (
     <form className="formulario hoja" onSubmit={enviar}>
-      <h2 className="t-head">{nuevo ? 'Crea tu cuenta de vendedor' : 'Entra a tu cuenta'}</h2>
+      <h2 className="t-head">{{ entrar: 'Entra a tu cuenta', nuevo: 'Crea tu cuenta de vendedor', olvido: 'Recupera tu contraseña' }[modo]}</h2>
       <Campo etiqueta="Correo"><input name="email" type="email" required autoComplete="email" /></Campo>
-      <Campo etiqueta="Contraseña (mínimo 8 caracteres)"><input name="pass" type="password" required minLength={8} autoComplete={nuevo ? 'new-password' : 'current-password'} /></Campo>
+      {modo !== 'olvido' && <Campo etiqueta="Contraseña (mínimo 8 caracteres)"><input name="pass" type="password" required minLength={8} autoComplete={nuevo ? 'new-password' : 'current-password'} /></Campo>}
       {nuevo && (
         <>
           <Campo etiqueta="Nombre de tu negocio"><input name="nombre_negocio" required minLength={2} maxLength={60} /></Campo>
@@ -44,16 +47,36 @@ function Acceso({ alEntrar }) {
       )}
       {error && <p role="alert" className="error">{error}</p>}
       {aviso && <p role="status">{aviso}</p>}
-      <button className="btn" disabled={ocupado}>{nuevo ? 'Crear cuenta' : 'Entrar'}</button>
-      <button type="button" className="enlace" onClick={() => { setNuevo(!nuevo); setError(''); setAviso(''); }}>
-        {nuevo ? 'Ya tengo cuenta' : 'Soy nuevo: crear cuenta'}
+      <button className="btn" disabled={ocupado}>{{ entrar: 'Entrar', nuevo: 'Crear cuenta', olvido: 'Enviar enlace' }[modo]}</button>
+      {modo === 'entrar' && <button type="button" className="enlace" onClick={() => cambiar('olvido')}>Olvidé mi contraseña</button>}
+      <button type="button" className="enlace" onClick={() => cambiar(nuevo ? 'entrar' : modo === 'olvido' ? 'entrar' : 'nuevo')}>
+        {nuevo ? 'Ya tengo cuenta' : modo === 'olvido' ? 'Volver' : 'Soy nuevo: crear cuenta'}
       </button>
+    </form>
+  );
+}
+
+/* Se muestra al volver del enlace del correo (el evento PASSWORD_RECOVERY lleva aquí con ?recuperar=1). */
+function NuevaPass({ alTerminar }) {
+  const [error, setError] = useState('');
+  async function enviar(e) {
+    e.preventDefault(); setError('');
+    try { await datos.cambiarPass(formAObj(e).pass); location.hash = '#/vendedor'; alTerminar(); }
+    catch { setError('No se pudo cambiar la contraseña. Pide un enlace nuevo.'); }
+  }
+  return (
+    <form className="formulario hoja" onSubmit={enviar}>
+      <h2 className="t-head">Elige tu nueva contraseña</h2>
+      <Campo etiqueta="Nueva contraseña (mínimo 8 caracteres)"><input name="pass" type="password" required minLength={8} autoComplete="new-password" /></Campo>
+      {error && <p role="alert" className="error">{error}</p>}
+      <button className="btn">Guardar contraseña</button>
     </form>
   );
 }
 
 function Panel({ usuario, alSalir }) {
   const [mios, setMios] = useState([]);
+  const [editando, setEditando] = useState(null);
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const cargar = () => datos.listar().then((l) => setMios(l.filter((p) => p.vendedor_id === usuario.id))).catch(() => {});
@@ -63,25 +86,32 @@ function Panel({ usuario, alSalir }) {
   async function publicar(e) {
     e.preventDefault(); setError(''); setOcupado(true);
     const form = e.currentTarget; const f = formAObj(e);
+    const fotos = [...form.elements.foto.files].slice(0, MAX_FOTOS);
+    const cambios = { nombre: f.nombre, descripcion: f.descripcion || null, precio: f.precio === '' ? null : Number(f.precio) };
     try {
-      await datos.crearProducto({ nombre: f.nombre, descripcion: f.descripcion || null, precio: f.precio === '' ? null : Number(f.precio) }, f.foto?.size ? f.foto : null);
-      form.reset(); await cargar();
-    } catch (err) { setError('No se pudo publicar. Revisa los datos e intenta otra vez.'); } finally { setOcupado(false); }
+      if (editando) await datos.actualizarProducto(editando.id, cambios, fotos); else await datos.crearProducto(cambios, fotos);
+      form.reset(); setEditando(null); await cargar();
+    } catch (err) {
+      setError(/límite/.test(err.message) ? err.message : 'No se pudo guardar. Revisa los datos e intenta otra vez.');
+    } finally { setOcupado(false); }
   }
+  const alternar = async (p) => { await datos.actualizarProducto(p.id, { agotado: !p.agotado }); cargar(); };
+  const borrar = async (p) => { if (confirm(`¿Borrar "${p.nombre}"? No se puede deshacer.`)) { await datos.borrarProducto(p.id); if (editando?.id === p.id) setEditando(null); cargar(); } };
 
   return (
     <>
       <p className="t-lead">{usuario.perfil?.nombre_negocio} · Torre {usuario.perfil?.torre} · {usuario.perfil?.tipo}</p>
       {!aprobado && <p className="aviso">Tu cuenta está en revisión. Cuando la aprobemos podrás publicar productos.</p>}
       {aprobado && (
-        <form className="formulario hoja" onSubmit={publicar}>
-          <h2 className="t-head">Nuevo producto</h2>
-          <Campo etiqueta="Nombre"><input name="nombre" required minLength={2} maxLength={80} /></Campo>
-          <Campo etiqueta="Descripción (opcional)"><textarea name="descripcion" rows={3} maxLength={500} /></Campo>
-          <Campo etiqueta="Precio en quetzales (vacío = “Precio por cotizar”)"><input name="precio" type="number" min="0" step="0.01" inputMode="decimal" /></Campo>
-          <Campo etiqueta="Foto (opcional)"><input name="foto" type="file" accept="image/*" /></Campo>
+        <form className="formulario hoja" onSubmit={publicar} key={editando?.id || 'nuevo'}>
+          <h2 className="t-head">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
+          <Campo etiqueta="Nombre"><input name="nombre" required minLength={2} maxLength={80} defaultValue={editando?.nombre} /></Campo>
+          <Campo etiqueta="Descripción (opcional)"><textarea name="descripcion" rows={3} maxLength={500} defaultValue={editando?.descripcion || ''} /></Campo>
+          <Campo etiqueta="Precio en quetzales (vacío = “Precio por cotizar”)"><input name="precio" type="number" min="0" step="0.01" inputMode="decimal" defaultValue={editando?.precio ?? ''} /></Campo>
+          <Campo etiqueta={`Fotos (opcional, hasta ${MAX_FOTOS})${editando ? '. Si eliges fotos nuevas, reemplazan las actuales' : ''}`}><input name="foto" type="file" accept="image/*" multiple /></Campo>
           {error && <p role="alert" className="error">{error}</p>}
-          <button className="btn" disabled={ocupado}>Publicar</button>
+          <button className="btn" disabled={ocupado}>{editando ? 'Guardar cambios' : 'Publicar'}</button>
+          {editando && <button type="button" className="enlace" onClick={() => setEditando(null)}>Cancelar edición</button>}
         </form>
       )}
       {aprobado && (
@@ -90,8 +120,14 @@ function Panel({ usuario, alSalir }) {
           {!mios.length && <p className="nota">Todavía no has publicado nada.</p>}
           <ul className="mios">
             {mios.map((p) => (
-              <li key={p.id}><span>{p.nombre}</span>
-                <button className="enlace" onClick={async () => { await datos.borrarProducto(p.id); cargar(); }}>Borrar</button></li>
+              <li key={p.id}>
+                <span>{p.nombre}{p.agotado && <span className="t-small nota"> · Agotado</span>}</span>
+                <span className="mios__acciones">
+                  <button className="enlace" onClick={() => { setEditando(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar</button>
+                  <button className="enlace" onClick={() => alternar(p)}>{p.agotado ? 'Hay existencias' : 'Marcar agotado'}</button>
+                  <button className="enlace" onClick={() => borrar(p)}>Borrar</button>
+                </span>
+              </li>
             ))}
           </ul>
         </>
@@ -101,15 +137,18 @@ function Panel({ usuario, alSalir }) {
   );
 }
 
-export default function Vendedor() {
+export default function Vendedor({ params }) {
   const [usuario, setUsuario] = useState(undefined);
   const refrescar = () => datos.usuario().then(setUsuario).catch(() => setUsuario(null));
   useEffect(() => { refrescar(); }, []);
+  const recuperando = params?.get('recuperar') && usuario;
   return (
     <section className="seccion envoltura panel">
       <Titulo as="h1" lineas={['Zona de vendedores']} />
       {demo && <p className="aviso t-small">Modo demo: los datos se guardan solo en este navegador. Prueba con demo@segheria.test / demo1234.</p>}
-      {usuario === undefined ? <p className="nota">Cargando…</p> : usuario ? <Panel usuario={usuario} alSalir={refrescar} /> : <Acceso alEntrar={refrescar} />}
+      {usuario === undefined ? <p className="nota">Cargando…</p>
+        : recuperando ? <NuevaPass alTerminar={refrescar} />
+        : usuario ? <Panel usuario={usuario} alSalir={refrescar} /> : <Acceso alEntrar={refrescar} />}
     </section>
   );
 }

@@ -191,3 +191,15 @@ p { text-wrap: pretty; }
 /* ---------- Administración ---------- */
 .admin { display: grid; gap: var(--medianil); list-style: none; padding: 0; margin-top: 2rem; }
 .admin li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; }
+
+/* ---------- Funciones v2: búsqueda, fotos, agotado, reportes ---------- */
+.buscar { margin-top: 1.5rem; max-width: 32rem; }
+.tira { display: flex; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: thin; }
+.tira img { flex: 0 0 100%; scroll-snap-align: center; }
+.etiqueta { position: absolute; top: .75rem; left: .75rem; padding: .25rem .75rem; background: var(--tinta); color: #fff; border-radius: 999px; font-size: var(--t-small); font-weight: 600; }
+.producto--agotado .foto { opacity: .6; }
+.btn--apagado { background: var(--nota); cursor: default; }
+.reporte summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; }
+.reporte form { display: grid; gap: .75rem; }
+.mios__acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0 1rem; }
+.mios li { flex-wrap: wrap; }

@@ -4,7 +4,12 @@ import { createClient } from '@supabase/supabase-js';
    sin ellas funciona en "modo demo" guardando todo en este navegador, para probar el flujo. */
 const URL = import.meta.env.VITE_SUPABASE_URL, KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const demo = !(URL && KEY);
-const sb = demo ? null : createClient(URL, KEY);
+// PKCE: el enlace de recuperar contraseña trae ?code= en vez de tokens en el hash, que choca con el router por hash.
+const sb = demo ? null : createClient(URL, KEY, { auth: { flowType: 'pkce' } });
+
+export const MAX_FOTOS = 4;
+export const MAX_PRODUCTOS = 20; // el mismo límite está en supabase.sql
+const SIN_DEMO = 'Esto no está disponible en modo demo.';
 
 /* Reduce la foto a 900px en webp antes de subirla (barata para el vendedor y para el catálogo). */
 async function reducir(archivo, max = 900) {
@@ -19,14 +24,18 @@ const aDataUrl = (blob) => new Promise((ok) => { const r = new FileReader(); r.o
 
 /* ---------- Modo demo (localStorage). shortcut: contraseñas en claro, solo para probar; se acaba al configurar Supabase ---------- */
 const LS = 'segheria-demo';
-const leer = () => { try { return JSON.parse(localStorage.getItem(LS)) || { usuarios: [], productos: [], sesion: null }; } catch { return { usuarios: [], productos: [], sesion: null }; } };
+const vacio = () => ({ usuarios: [], productos: [], sesion: null });
+const leer = () => { try { return JSON.parse(localStorage.getItem(LS)) || vacio(); } catch { return vacio(); } };
 const guardar = (d) => localStorage.setItem(LS, JSON.stringify(d));
 const uid = () => Math.random().toString(36).slice(2, 10);
+const fotosLocal = (archivos) => Promise.all(archivos.map(async (a) => aDataUrl(await reducir(a, 700))));
 
 const local = {
   async listar() {
     const d = leer();
-    return d.productos.map((p) => ({ ...p, vendedor_id: p.vendedor, vendedor:d.usuarios.find((u) => u.id === p.vendedor)?.perfil })).filter((p) => p.vendedor);
+    return d.productos
+      .map((p) => ({ ...p, imagenes: p.imagenes || (p.imagen ? [p.imagen] : []), vendedor_id: p.vendedor, vendedor: d.usuarios.find((u) => u.id === p.vendedor)?.perfil }))
+      .filter((p) => p.vendedor);
   },
   async usuario() { const d = leer(); return d.usuarios.find((u) => u.id === d.sesion) || null; },
   async registrar({ email, pass, perfil }) {
@@ -42,21 +51,42 @@ const local = {
     d.sesion = u.id; guardar(d);
   },
   async salir() { const d = leer(); d.sesion = null; guardar(d); },
-  async crearProducto(p, archivo) {
-    const d = leer(); const imagen = archivo ? await aDataUrl(await reducir(archivo, 700)) : null;
-    d.productos.unshift({ id: uid(), vendedor: d.sesion, ...p, imagen }); guardar(d);
+  async crearProducto(p, archivos = []) {
+    const d = leer();
+    if (d.productos.filter((x) => x.vendedor === d.sesion).length >= MAX_PRODUCTOS) throw new Error(`Llegaste al límite de ${MAX_PRODUCTOS} productos.`);
+    d.productos.unshift({ id: uid(), vendedor: d.sesion, agotado: false, ...p, imagenes: await fotosLocal(archivos) }); guardar(d);
+  },
+  async actualizarProducto(id, cambios, archivos = []) {
+    const nuevas = archivos.length ? { imagenes: await fotosLocal(archivos) } : {};
+    const d = leer(); d.productos = d.productos.map((p) => (p.id === id ? { ...p, ...cambios, ...nuevas } : p)); guardar(d);
   },
   async borrarProducto(id) { const d = leer(); d.productos = d.productos.filter((p) => p.id !== id); guardar(d); },
-  async esAdmin() { return false; } // el modo demo no tiene administrador
+  async reportar() { /* shortcut: en demo no hay a quién reportar */ },
+  async recuperar() { throw new Error(SIN_DEMO); },
+  async cambiarPass() { throw new Error(SIN_DEMO); },
+  alRecuperar() { return () => {}; },
+  async esAdmin() { return false; }, // el modo demo no tiene administrador
+  async adminPerfiles() { return []; }, async adminAprobar() {}, async adminReportes() { return []; }, async adminResolver() {}
 };
 
 /* ---------- Supabase ---------- */
-const COLS = 'id,nombre,descripcion,precio,imagen,vendedor,perfil:profiles(nombre_negocio,tipo,torre,whatsapp)';
+const COLS = 'id,nombre,descripcion,precio,imagenes,agotado,vendedor,perfil:profiles(nombre_negocio,tipo,torre,whatsapp)';
+async function subir(archivos) {
+  if (!archivos.length) return [];
+  const { data: { user } } = await sb.auth.getUser();
+  return Promise.all(archivos.map(async (a) => {
+    const ruta = `${user.id}/${uid()}.webp`;
+    const { error } = await sb.storage.from('productos').upload(ruta, await reducir(a), { contentType: 'image/webp' });
+    if (error) throw error;
+    return sb.storage.from('productos').getPublicUrl(ruta).data.publicUrl;
+  }));
+}
+const ok = ({ data, error }) => { if (error) throw error; return data; };
+
 const remoto = {
   async listar() {
-    const { data, error } = await sb.from('productos').select(COLS).order('creado', { ascending: false });
-    if (error) throw error;
-    return data.map(({ perfil, ...p }) => ({ ...p, vendedor_id: p.vendedor, vendedor: perfil }));
+    const data = ok(await sb.from('productos').select(COLS).order('creado', { ascending: false }));
+    return data.map(({ perfil, ...p }) => ({ ...p, imagenes: p.imagenes || [], vendedor_id: p.vendedor, vendedor: perfil }));
   },
   async usuario() {
     const { data: { session } } = await sb.auth.getSession();
@@ -71,23 +101,22 @@ const remoto = {
   },
   async entrar(email, pass) { const { error } = await sb.auth.signInWithPassword({ email, password: pass }); if (error) throw new Error('Correo o contraseña incorrectos.'); },
   async salir() { await sb.auth.signOut(); },
-  async crearProducto(p, archivo) {
-    let imagen = null;
-    if (archivo) {
-      const { data: { user } } = await sb.auth.getUser();
-      const ruta = `${user.id}/${uid()}.webp`;
-      const { error: e1 } = await sb.storage.from('productos').upload(ruta, await reducir(archivo), { contentType: 'image/webp' });
-      if (e1) throw e1;
-      imagen = sb.storage.from('productos').getPublicUrl(ruta).data.publicUrl;
-    }
-    const { error } = await sb.from('productos').insert({ ...p, imagen });
-    if (error) throw error;
+  async crearProducto(p, archivos = []) { ok(await sb.from('productos').insert({ ...p, imagenes: await subir(archivos) })); },
+  async actualizarProducto(id, cambios, archivos = []) {
+    const nuevas = archivos.length ? { imagenes: await subir(archivos) } : {};
+    ok(await sb.from('productos').update({ ...cambios, ...nuevas }).eq('id', id));
   },
-  async borrarProducto(id) { const { error } = await sb.from('productos').delete().eq('id', id); if (error) throw error; },
+  async borrarProducto(id) { ok(await sb.from('productos').delete().eq('id', id)); },
+  async reportar(producto, motivo) { ok(await sb.from('reportes').insert({ producto, motivo })); },
+  async recuperar(email) { ok(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })); },
+  async cambiarPass(pass) { ok(await sb.auth.updateUser({ password: pass })); },
+  alRecuperar(cb) { const { data } = sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') cb(); }); return () => data.subscription.unsubscribe(); },
   /* Administración: las funciones SQL revisan en el servidor que seas admin (ver supabase.sql). */
   async esAdmin() { const { data } = await sb.rpc('es_admin'); return data === true; },
-  async adminPerfiles() { const { data, error } = await sb.rpc('admin_perfiles'); if (error) throw error; return data; },
-  async adminAprobar(id, valor) { const { error } = await sb.rpc('admin_aprobar', { uid: id, valor }); if (error) throw error; }
+  async adminPerfiles() { return ok(await sb.rpc('admin_perfiles')); },
+  async adminAprobar(id, valor) { ok(await sb.rpc('admin_aprobar', { uid: id, valor })); },
+  async adminReportes() { return ok(await sb.rpc('admin_reportes')); },
+  async adminResolver(id, borrar) { ok(await sb.rpc('admin_resolver', { rid: id, borrar })); }
 };
 
 export const datos = demo ? local : remoto;
@@ -97,7 +126,7 @@ if (demo && !leer().usuarios.length) {
   const id = 'demo1';
   guardar({ sesion: null, usuarios: [{ id, email: 'demo@segheria.test', pass: 'demo1234', perfil: { nombre_negocio: 'Cocina de la Torre 3 (ejemplo)', tipo: 'Comida y postres', torre: 3, apto: '304', whatsapp: '50000000', aprobado: true } }],
     productos: [
-      { id: 'e1', vendedor: id, nombre: 'Pastel de zanahoria (ejemplo)', descripcion: 'Producto de ejemplo del modo demo.', precio: 120, imagen: null },
-      { id: 'e2', vendedor: id, nombre: 'Caja de galletas (ejemplo)', descripcion: 'Producto de ejemplo del modo demo.', precio: null, imagen: null }
+      { id: 'e1', vendedor: id, nombre: 'Pastel de zanahoria (ejemplo)', descripcion: 'Producto de ejemplo del modo demo.', precio: 120, imagenes: [], agotado: false },
+      { id: 'e2', vendedor: id, nombre: 'Caja de galletas (ejemplo)', descripcion: 'Producto de ejemplo del modo demo.', precio: null, imagenes: [], agotado: true }
     ] });
 }

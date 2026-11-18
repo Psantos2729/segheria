@@ -8,7 +8,9 @@ export default function Admin() {
   const [lista, setLista] = useState([]);
   const [error, setError] = useState('');
 
-  const cargar = () => datos.adminPerfiles().then(setLista).catch(() => setError('No se pudo cargar la lista.'));
+  const [reportes, setReportes] = useState([]);
+  const cargar = () => Promise.all([datos.adminPerfiles(), datos.adminReportes()])
+    .then(([l, r]) => { setLista(l); setReportes(r); }).catch(() => setError('No se pudo cargar la lista.'));
   useEffect(() => {
     datos.esAdmin().then((ok) => { setEstado(ok ? 'si' : 'no'); if (ok) cargar(); }).catch(() => setEstado('no'));
   }, []);
@@ -26,6 +28,13 @@ export default function Admin() {
     </section>
   );
 
+  async function resolver(r, borrar) {
+    if (borrar && !confirm(`¿Borrar "${r.producto_nombre}"? No se puede deshacer.`)) return;
+    setError('');
+    try { await datos.adminResolver(r.id, borrar); await cargar(); } catch { setError('No se pudo resolver el reporte.'); }
+  }
+  // Supabase no envía correos propios: el aviso de aprobación va por WhatsApp, con el mensaje ya escrito.
+  const avisoWA = (p) => `https://wa.me/502${p.whatsapp}?text=${encodeURIComponent(`Hola, tu cuenta de vendedor en Catálogo Segheria ya fue aprobada. Ya puedes publicar tus productos.`)}`;
   const pendientes = lista.filter((p) => !p.aprobado).length;
   return (
     <section className="seccion envoltura">
@@ -40,9 +49,29 @@ export default function Admin() {
               <p className="t-small">Torre {p.torre} · Apto {p.apto} · WhatsApp {p.whatsapp}</p>
               <p className="t-small nota">{p.email}</p>
             </div>
-            <button className={p.aprobado ? 'enlace' : 'btn btn--chico'} onClick={() => cambiar(p)}>
-              {p.aprobado ? 'Quitar aprobación' : 'Aprobar'}
-            </button>
+            <span className="mios__acciones">
+              {p.aprobado && <a className="enlace" href={avisoWA(p)} target="_blank" rel="noopener">Avisar por WhatsApp</a>}
+              <button className={p.aprobado ? 'enlace' : 'btn btn--chico'} onClick={() => cambiar(p)}>
+                {p.aprobado ? 'Quitar aprobación' : 'Aprobar'}
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="t-head panel__sub">Reportes</h2>
+      {!reportes.length && <p className="nota">No hay reportes pendientes.</p>}
+      <ul className="admin">
+        {reportes.map((r) => (
+          <li key={r.id} className="hoja">
+            <div>
+              <p className="serif t-lead">{r.producto_nombre} <span className="t-small nota">· {r.negocio}</span></p>
+              <p>{r.motivo}</p>
+            </div>
+            <span className="mios__acciones">
+              <button className="enlace" onClick={() => resolver(r, false)}>Descartar</button>
+              <button className="btn btn--chico" onClick={() => resolver(r, true)}>Borrar producto</button>
+            </span>
           </li>
         ))}
       </ul>
