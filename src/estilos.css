@@ -234,8 +234,15 @@ p { text-wrap: pretty; }
 }
 .detalle__tarjeta { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(1.5rem, 3.5vw, 3.5rem); padding: clamp(1rem, 3vw, 2.5rem); }
 .detalle__galeria { display: grid; gap: .75rem; align-content: start; }
-.detalle__galeria { justify-items: center; }
+.detalle__galeria { grid-template-columns: minmax(0, 1fr); justify-items: center; }
 .detalle__carta { position: relative; width: min(100%, 380px); }
+.detalle__carta--ampliable .profile-card__tile { cursor: zoom-in; }
+/* En computadora la tarjeta ocupa más ancho y se vuelve horizontal. */
+@media (min-width: 64em) {
+  .detalle__tarjeta { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+  .detalle__carta { width: min(100%, 640px); }
+  .detalle__carta .profile-card__tile { aspect-ratio: 5 / 4; }
+}
 .detalle__carta .profile-card { width: 100%; }
 .detalle__carta .profile-card__photo { object-position: center; }
 .detalle__carta .etiqueta { z-index: 5; top: 1.5rem; left: 1.5rem; }
@@ -262,4 +269,24 @@ p { text-wrap: pretty; }
 .detalle__datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding-block: 1rem; border-block: 1px solid rgb(37 22 27 / .15); }
 .detalle__datos dt { font-size: var(--t-small); color: var(--nota); }
 .detalle__datos dd { font-weight: 600; }
-@media (max-width: 47.99em) { .detalle__tarjeta { grid-template-columns: 1fr; } }
+@media (max-width: 47.99em) { .detalle__tarjeta { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Visor de foto completa (sin marco) ---------- */
+.visor { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: clamp(3.5rem, 6vw, 4.5rem) clamp(.5rem, 4vw, 5rem);
+  border: 0; background: transparent; color: #fff; overflow: hidden; }
+.visor[open] { display: grid; place-items: center; }
+.visor::backdrop { background: rgb(10 8 9 / .92); }
+.visor img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 6px; }
+.visor__boton { position: absolute; display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 999px;
+  background: rgb(255 255 255 / .14); color: #fff; font-size: 2rem; line-height: 1; transition: background-color 160ms ease; }
+.visor__cerrar { top: .75rem; right: .75rem; }
+.visor__flecha { top: 50%; translate: 0 -50%; }
+.visor__flecha--ant { left: .75rem; } .visor__flecha--sig { right: .75rem; }
+.visor__cuenta { position: absolute; bottom: 1rem; left: 50%; translate: -50% 0; font-size: var(--t-small); opacity: .8; }
+@media (hover: hover) and (pointer: fine) { .visor__boton:hover { background: rgb(255 255 255 / .28); } }
+@media (prefers-reduced-motion: no-preference) {
+  .visor[open] img { animation: visor-entra 320ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .visor[open]::backdrop { animation: visor-fondo 240ms ease; }
+  @keyframes visor-entra { from { opacity: 0; transform: scale(.92); } }
+  @keyframes visor-fondo { from { opacity: 0; } }
+}

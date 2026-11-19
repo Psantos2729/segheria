@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { negocio, colorTipo } from '../contenido.js';
 import { datos, recientes } from '../lib/datos.js';
 import ProfileCard from '../reactbits/ProfileCard/ProfileCard.jsx';
@@ -33,6 +33,7 @@ export default function Producto({ params }) {
   const [p, setP] = useState(() => recientes.productos?.find((x) => x.id === id));
   const [foto, setFoto] = useState(0);
   const [error, setError] = useState('');
+  const visor = useRef(null); // <dialog> con la foto completa
   useEffect(() => {
     datos.listar().then((l) => setP(l.find((x) => x.id === id) || null)).catch(() => setError('No pudimos cargar el producto. Intenta de nuevo en un momento.'));
   }, [id]);
@@ -47,6 +48,8 @@ export default function Producto({ params }) {
 
   const fotos = p.imagenes;
   const color = colorTipo[p.vendedor.tipo] || '#E0705F'; // color hex: ProfileCard calcula con él
+  const verCompleta = () => fotos.length && visor.current.showModal();
+  const mover = (paso) => setFoto((foto + paso + fotos.length) % fotos.length);
   return (
     <section className="detalle" style={{ '--tono': color }}>
       <div className="detalle__fondo" aria-hidden="true">
@@ -56,7 +59,9 @@ export default function Producto({ params }) {
         <a className="enlace detalle__volver" href="#/catalogo">← Volver al catálogo</a>
         <article className="vidrio detalle__tarjeta">
           <div className="detalle__galeria">
-            <div className="detalle__carta" style={{ viewTransitionName: `p-${p.id}` }}>
+            {/* Tocar la tarjeta abre la foto completa (menos el botón de cotizar, que abre WhatsApp). */}
+            <div className={`detalle__carta${fotos.length ? ' detalle__carta--ampliable' : ''}`} style={{ viewTransitionName: `p-${p.id}` }}
+              onClick={(e) => { if (!e.target.closest('.profile-card__contact')) verCompleta(); }}>
               <ProfileCard
                 avatarUrl={fotos[foto] || ''}
                 name={p.nombre}
@@ -84,6 +89,7 @@ export default function Producto({ params }) {
                 ))}
               </ul>
             )}
+            {fotos.length > 0 && <button type="button" className="enlace" onClick={verCompleta}>Ver foto completa</button>}
           </div>
           <div className="detalle__info">
             <p className="t-small detalle__tipo">{p.vendedor.tipo}</p>
@@ -101,6 +107,21 @@ export default function Producto({ params }) {
           </div>
         </article>
       </div>
+      {fotos.length > 0 && (
+        <dialog ref={visor} className="visor" aria-label={`Fotos de ${p.nombre}`}
+          onClick={(e) => { if (e.target === e.currentTarget) e.currentTarget.close(); }}
+          onKeyDown={(e) => { if (fotos.length > 1 && e.key === 'ArrowRight') mover(1); if (fotos.length > 1 && e.key === 'ArrowLeft') mover(-1); }}>
+          <img key={fotos[foto]} src={fotos[foto]} alt={`${p.nombre}, foto ${foto + 1} de ${fotos.length}`} />
+          <button type="button" className="visor__boton visor__cerrar" aria-label="Cerrar" onClick={() => visor.current.close()}>×</button>
+          {fotos.length > 1 && (
+            <>
+              <button type="button" className="visor__boton visor__flecha visor__flecha--ant" aria-label="Foto anterior" onClick={() => mover(-1)}>‹</button>
+              <button type="button" className="visor__boton visor__flecha visor__flecha--sig" aria-label="Foto siguiente" onClick={() => mover(1)}>›</button>
+              <p className="visor__cuenta">{foto + 1} / {fotos.length}</p>
+            </>
+          )}
+        </dialog>
+      )}
     </section>
   );
 }
