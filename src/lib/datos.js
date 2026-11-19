@@ -11,14 +11,16 @@ export const MAX_FOTOS = 4;
 export const MAX_PRODUCTOS = 20; // el mismo límite está en supabase.sql
 const SIN_DEMO = 'Esto no está disponible en modo demo.';
 
-/* Reduce la foto a 900px en webp antes de subirla (barata para el vendedor y para el catálogo). */
+/* Reduce la foto a 900px en webp antes de subirla (barata para el vendedor y para el catálogo).
+   Safari (iPhone) no sabe crear webp: devuelve un PNG pesado que pasa del límite de 2 MB. Ahí se usa JPEG. */
 async function reducir(archivo, max = 900) {
   const bmp = await createImageBitmap(archivo);
   const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-  return new Promise((ok) => c.toBlob(ok, 'image/webp', 0.82));
+  const webp = await new Promise((ok) => c.toBlob(ok, 'image/webp', 0.82));
+  return webp?.type === 'image/webp' ? webp : new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.82));
 }
 const aDataUrl = (blob) => new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
 
@@ -76,9 +78,10 @@ async function subir(archivos) {
   if (!archivos.length) return [];
   const { data: { user } } = await sb.auth.getUser();
   return Promise.all(archivos.map(async (a) => {
-    const ruta = `${user.id}/${uid()}.webp`;
-    const { error } = await sb.storage.from('productos').upload(ruta, await reducir(a), { contentType: 'image/webp' });
-    if (error) throw error;
+    const foto = await reducir(a);
+    const ruta = `${user.id}/${uid()}.${foto.type === 'image/webp' ? 'webp' : 'jpg'}`;
+    const { error } = await sb.storage.from('productos').upload(ruta, foto, { contentType: foto.type });
+    if (error) throw new Error(`foto: ${error.message}`);
     return sb.storage.from('productos').getPublicUrl(ruta).data.publicUrl;
   }));
 }

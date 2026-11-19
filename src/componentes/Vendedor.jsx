@@ -94,7 +94,10 @@ function Panel({ usuario, alSalir }) {
       if (editando) await datos.actualizarProducto(editando.id, cambios, fotos); else await datos.crearProducto(cambios, fotos);
       form.reset(); setEditando(null); await cargar();
     } catch (err) {
-      setError(/límite/.test(err.message) ? err.message : 'No se pudo guardar. Revisa los datos e intenta otra vez.');
+      console.error(err); // el detalle queda en la consola para revisarlo
+      setError(/límite/.test(err.message) ? err.message
+        : /^foto/.test(err.message) ? 'No se pudo subir la foto. Prueba con otra foto, o publica sin foto y agrégala después.'
+        : 'No se pudo guardar. Revisa los datos e intenta otra vez.');
     } finally { setOcupado(false); }
   }
   const intentar = async (accion) => {

@@ -177,3 +177,7 @@ create trigger tipo_defecto before insert on productos for each row execute func
 alter table productos alter column tipo set not null;
 
 grant insert (tipo), update (tipo) on productos to authenticated;
+
+-- ---------- Versión 6: fotos JPEG desde iPhone (si ya corriste lo anterior, pega y corre solo desde aquí) ----------
+-- Safari no sabe crear webp, así que desde el iPhone las fotos se suben en JPEG (también reducidas a 900px).
+update storage.buckets set allowed_mime_types = '{image/webp,image/jpeg}' where id = 'productos';

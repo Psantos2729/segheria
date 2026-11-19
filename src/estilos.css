@@ -174,10 +174,10 @@ p { text-wrap: pretty; }
 /* ---------- Vendedor ---------- */
 .panel { max-width: 40rem; }
 .panel > * + * { margin-top: 1.5rem; }
-.formulario { display: grid; gap: 1rem; }
-.formulario__par { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; }
+.formulario { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; } /* sin esto, un nombre de archivo largo ensancha el formulario en el teléfono */
+.formulario__par { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 1rem; }
 .campo { display: grid; gap: .375rem; font-weight: 500; }
-.campo input, .campo select, .campo textarea { min-height: 3rem; padding: .625rem .875rem; background: var(--fondo); border: 2px solid var(--nota); border-radius: 8px; font-weight: 400; }
+.campo input, .campo select, .campo textarea { min-width: 0; width: 100%; min-height: 3rem; padding: .625rem .875rem; background: var(--fondo); border: 2px solid var(--nota); border-radius: 8px; font-weight: 400; }
 .aviso { padding: 1rem; background: var(--papel); border-left: 6px solid var(--acento); }
 .error { color: #A3122B; font-weight: 500; }
 .panel__sub { margin-top: 3rem; }
