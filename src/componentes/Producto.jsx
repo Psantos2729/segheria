@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { negocio, colorTipo } from '../contenido.js';
-import { datos } from '../lib/datos.js';
+import { datos, recientes } from '../lib/datos.js';
+import ProfileCard from '../reactbits/ProfileCard/ProfileCard.jsx';
 import { quetzales, waUrl } from './Catalogo.jsx';
 
 function Reportar({ id }) {
@@ -28,7 +29,8 @@ function Reportar({ id }) {
 /* Página de un producto: fotos grandes y todos sus datos sobre una tarjeta de vidrio. */
 export default function Producto({ params }) {
   const id = params.get('id');
-  const [p, setP] = useState(undefined); // undefined = cargando, null = no existe
+  // Si venimos del catálogo, el producto ya está en memoria y se pinta al instante (undefined = cargando, null = no existe).
+  const [p, setP] = useState(() => recientes.productos?.find((x) => x.id === id));
   const [foto, setFoto] = useState(0);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function Producto({ params }) {
   );
 
   const fotos = p.imagenes;
-  const color = colorTipo[p.vendedor.tipo] || 'var(--acento)';
+  const color = colorTipo[p.vendedor.tipo] || '#E0705F'; // color hex: ProfileCard calcula con él
   return (
     <section className="detalle" style={{ '--tono': color }}>
       <div className="detalle__fondo" aria-hidden="true">
@@ -54,10 +56,21 @@ export default function Producto({ params }) {
         <a className="enlace detalle__volver" href="#/catalogo">← Volver al catálogo</a>
         <article className="vidrio detalle__tarjeta">
           <div className="detalle__galeria">
-            <div className={`foto foto--4x3${p.agotado ? ' foto--apagada' : ''}`}>
-              {fotos.length
-                ? <img src={fotos[foto]} alt={`${p.nombre}, foto ${foto + 1} de ${fotos.length}`} />
-                : <span className="producto__sin serif" aria-hidden="true" style={{ background: color }}>{p.nombre[0]}</span>}
+            <div className="detalle__carta" style={{ viewTransitionName: `p-${p.id}` }}>
+              <ProfileCard
+                avatarUrl={fotos[foto] || ''}
+                name={p.nombre}
+                title={quetzales(p.precio)}
+                handle=""
+                status={`${p.vendedor.nombre_negocio} · Torre ${p.vendedor.torre}`}
+                statusColor={p.agotado ? '#9CA3AF' : '#22c55e'}
+                contactText={p.agotado ? '' : 'Cotizar'}
+                onContactClick={() => window.open(waUrl(p), '_blank', 'noopener')}
+                backdropColor={color}
+                theme="light"
+                radius={18}
+                className="detalle__profile"
+              />
               {p.agotado && <span className="etiqueta">Agotado</span>}
             </div>
             {fotos.length > 1 && (

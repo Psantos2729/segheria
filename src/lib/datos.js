@@ -137,6 +137,12 @@ const remoto = {
 
 export const datos = demo ? local : remoto;
 
+/* Última lista cargada. Con ella la página de un producto se pinta al instante, sin "Cargando…",
+   y la transición de acercamiento encuentra la foto en las dos vistas. */
+export const recientes = { productos: null };
+const listar = datos.listar;
+datos.listar = async () => (recientes.productos = await listar());
+
 /* Productos de ejemplo del modo demo, para ver los filtros. Se cargan una vez. */
 if (demo && !leer().usuarios.length) {
   const id = 'demo1';

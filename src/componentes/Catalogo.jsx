@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { tipos, colorTipo } from '../contenido.js';
-import { datos, demo } from '../lib/datos.js';
+import { datos, demo, recientes } from '../lib/datos.js';
 import Titulo from './Titulo.jsx';
 import SpotlightCard from '../reactbits/SpotlightCard/SpotlightCard.jsx';
 import CountUp from '../reactbits/CountUp/CountUp.jsx';
@@ -15,7 +15,7 @@ export default function Catalogo({ params }) {
   const tipo = params.get('tipo') || '';
   const vend = params.get('vendedor') || '';
   const [q, setQ] = useState('');
-  const [productos, setProductos] = useState(null);
+  const [productos, setProductos] = useState(recientes.productos);
   const [error, setError] = useState('');
   useEffect(() => { datos.listar().then(setProductos).catch(() => setError('No pudimos cargar el catálogo. Intenta de nuevo en un momento.')); }, []);
 
@@ -45,7 +45,7 @@ export default function Catalogo({ params }) {
         {ver.map((p) => (
           <li key={p.id} className={`producto${p.agotado ? ' producto--agotado' : ''}`}>
             <SpotlightCard className="producto__tarjeta" theme="light" spotlightColor="#E0705F" intensity={0.18}>
-            <a className="foto foto--4x3" href={`#/producto?id=${p.id}`} tabIndex={-1} aria-hidden="true">
+            <a className="foto foto--4x3" href={`#/producto?id=${p.id}`} tabIndex={-1} aria-hidden="true" style={{ viewTransitionName: `p-${p.id}` }}>
               {p.imagenes.length
                 ? <img src={p.imagenes[0]} alt="" loading="lazy" />
                 : <span className="producto__sin serif" style={{ background: colorTipo[p.vendedor.tipo] }}>{p.nombre[0]}</span>}

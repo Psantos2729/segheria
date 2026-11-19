@@ -10,6 +10,8 @@
     "reactbit": "node scripts/agregar-reactbit.mjs"
   },
   "dependencies": {
+    "@hugeicons/core-free-icons": "^4.3.3",
+    "@hugeicons/react": "^1.1.10",
     "@supabase/supabase-js": "^2.119.1",
     "gsap": "^3.13.0",
     "motion": "^12.23.12",
