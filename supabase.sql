@@ -160,3 +160,20 @@ create policy "ver tus fotos" on storage.objects for select to authenticated
   using (bucket_id = 'productos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "borrar tus fotos" on storage.objects for delete to authenticated
   using (bucket_id = 'productos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- Versión 5: tipo por producto (si ya corriste lo anterior, pega y corre solo desde aquí) ----------
+-- Un negocio de "Comida y postres" puede vender también algo de "Hogar y decoración".
+-- El tipo del perfil queda como el principal del negocio y es el valor por defecto de cada producto.
+alter table productos add column tipo text;
+update productos p set tipo = f.tipo from profiles f where f.id = p.vendedor;
+
+-- Si llega un producto sin tipo (por ejemplo, desde una versión vieja del sitio guardada en el navegador), toma el del negocio.
+create function tipo_por_defecto() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.tipo is null then new.tipo := (select tipo from profiles where id = new.vendedor); end if;
+  return new;
+end $$;
+create trigger tipo_defecto before insert on productos for each row execute function tipo_por_defecto();
+alter table productos alter column tipo set not null;
+
+grant insert (tipo), update (tipo) on productos to authenticated;

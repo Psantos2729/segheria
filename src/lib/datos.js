@@ -35,7 +35,8 @@ const local = {
     const d = leer();
     return d.productos
       .map((p) => ({ ...p, imagenes: p.imagenes || (p.imagen ? [p.imagen] : []), vendedor_id: p.vendedor, vendedor: d.usuarios.find((u) => u.id === p.vendedor)?.perfil }))
-      .filter((p) => p.vendedor);
+      .filter((p) => p.vendedor)
+      .map((p) => ({ ...p, tipo: p.tipo || p.vendedor.tipo })); // productos de antes de la v5 no traen tipo
   },
   async usuario() { const d = leer(); return d.usuarios.find((u) => u.id === d.sesion) || null; },
   async registrar({ email, pass, perfil }) {
@@ -70,7 +71,7 @@ const local = {
 };
 
 /* ---------- Supabase ---------- */
-const COLS = 'id,nombre,descripcion,precio,imagenes,agotado,vendedor,perfil:profiles(nombre_negocio,tipo,torre,whatsapp)';
+const COLS = 'id,nombre,descripcion,precio,imagenes,agotado,tipo,vendedor,perfil:profiles(nombre_negocio,tipo,torre,whatsapp)';
 async function subir(archivos) {
   if (!archivos.length) return [];
   const { data: { user } } = await sb.auth.getUser();
@@ -93,7 +94,7 @@ async function quitar(urls) {
 const remoto = {
   async listar() {
     const data = ok(await sb.from('productos').select(COLS).order('creado', { ascending: false }));
-    return data.map(({ perfil, ...p }) => ({ ...p, imagenes: p.imagenes || [], vendedor_id: p.vendedor, vendedor: perfil }));
+    return data.map(({ perfil, ...p }) => ({ ...p, tipo: p.tipo || perfil.tipo, imagenes: p.imagenes || [], vendedor_id: p.vendedor, vendedor: perfil }));
   },
   async usuario() {
     const { data: { session } } = await sb.auth.getSession();

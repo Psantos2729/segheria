@@ -52,7 +52,7 @@ export default function Inicio() {
           </div>
           <div className="portada__fila">
             <div>
-              <p className="t-lead portada__lead">Un catálogo con lo que venden los vecinos de Segheria. Filtra por tipo de negocio, elige un producto y pide tu cotización directo al vendedor.</p>
+              <p className="t-lead portada__lead">Un catálogo con lo que venden los vecinos de Segheria. Filtra por tipo de producto, elige un producto y pide tu cotización directo al vendedor.</p>
               <div className="portada__acciones">
                 <a className="btn btn--claro" href="#/catalogo"><ShinyText text="Ver catálogo" color="#25161B" shineColor="#E0705F" speed={3} /></a>
                 <a className="enlace" href="#/vendedor">Quiero vender</a>

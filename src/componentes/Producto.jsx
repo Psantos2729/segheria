@@ -47,7 +47,7 @@ export default function Producto({ params }) {
   );
 
   const fotos = p.imagenes;
-  const color = colorTipo[p.vendedor.tipo] || '#E0705F'; // color hex: ProfileCard calcula con él
+  const color = colorTipo[p.tipo] || '#E0705F'; // color hex: ProfileCard calcula con él
   const verCompleta = () => fotos.length && visor.current.showModal();
   const mover = (paso) => setFoto((foto + paso + fotos.length) % fotos.length);
   return (
@@ -92,7 +92,7 @@ export default function Producto({ params }) {
             {fotos.length > 0 && <button type="button" className="enlace" onClick={verCompleta}>Ver foto completa</button>}
           </div>
           <div className="detalle__info">
-            <p className="t-small detalle__tipo">{p.vendedor.tipo}</p>
+            <p className="t-small detalle__tipo">{p.tipo}</p>
             <h1 className="t-head">{p.nombre}</h1>
             <p className="detalle__precio serif">{quetzales(p.precio)}</p>
             {p.descripcion && <p className="detalle__desc">{p.descripcion}</p>}

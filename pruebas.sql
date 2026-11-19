@@ -38,6 +38,10 @@ end $$;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
 do $$ begin
   insert into productos (nombre) values ('Publicación normal'); -- si esto falla, el vendedor aprobado no puede publicar
+  if (select tipo from productos where nombre = 'Publicación normal') is distinct from 'Otros' then
+    raise exception 'FALLA: un producto sin tipo no tomó el tipo de su negocio';
+  end if;
+  insert into productos (nombre, tipo) values ('Con su propio tipo', 'Mascotas'); -- si esto falla, no se puede elegir el tipo
   if not exists (select 1 from storage.objects where name = '00000000-0000-0000-0000-0000000000a2/foto.webp') then
     raise exception 'FALLA: un vendedor no ve sus propias fotos, así que no podrá borrar las viejas';
   end if;

@@ -20,7 +20,7 @@ export default function Catalogo({ params }) {
   useEffect(() => { datos.listar().then(setProductos).catch(() => setError('No pudimos cargar el catálogo. Intenta de nuevo en un momento.')); }, []);
 
   const ver = (productos || [])
-    .filter((p) => (!tipo || p.vendedor.tipo === tipo) && (!vend || p.vendedor_id === vend)
+    .filter((p) => (!tipo || p.tipo === tipo) && (!vend || p.vendedor_id === vend)
       && (!q || norm(`${p.nombre} ${p.descripcion || ''} ${p.vendedor.nombre_negocio}`).includes(norm(q))))
     .sort((a, b) => Number(a.agotado) - Number(b.agotado)); // los agotados al final
   const tienda = vend && productos?.find((p) => p.vendedor_id === vend)?.vendedor.nombre_negocio;
@@ -32,7 +32,7 @@ export default function Catalogo({ params }) {
       {demo && <p className="aviso t-small">Modo demo: los datos se guardan solo en este navegador.</p>}
       <label className="campo buscar"><span className="sr-only">Buscar productos</span>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar un producto o negocio" /></label>
-      <div className="filtros" role="group" aria-label="Filtrar por tipo de negocio">
+      <div className="filtros" role="group" aria-label="Filtrar por tipo de producto">
         {['', ...tipos].map((t) => (
           <a key={t} className="filtro" href={t ? `#/catalogo?tipo=${encodeURIComponent(t)}` : '#/catalogo'} aria-current={!vend && tipo === t ? 'true' : undefined}>{t || 'Todos'}</a>
         ))}
@@ -48,12 +48,12 @@ export default function Catalogo({ params }) {
             <a className="foto foto--4x3" href={`#/producto?id=${p.id}`} tabIndex={-1} aria-hidden="true" style={{ viewTransitionName: `p-${p.id}` }}>
               {p.imagenes.length
                 ? <img src={p.imagenes[0]} alt="" loading="lazy" />
-                : <span className="producto__sin serif" style={{ background: colorTipo[p.vendedor.tipo] }}>{p.nombre[0]}</span>}
+                : <span className="producto__sin serif" style={{ background: colorTipo[p.tipo] }}>{p.nombre[0]}</span>}
               {p.agotado && <span className="etiqueta">Agotado</span>}
               {p.imagenes.length > 1 && <span className="etiqueta etiqueta--fotos">{p.imagenes.length} fotos</span>}
             </a>
             <div className="producto__cuerpo">
-              <p className="t-small nota">{p.vendedor.tipo}</p>
+              <p className="t-small nota">{p.tipo}</p>
               <h2 className="t-lead serif"><a className="producto__enlace" href={`#/producto?id=${p.id}`}>{p.nombre}</a></h2>
               <p className="producto__precio">{quetzales(p.precio)}</p>
               {p.descripcion && <p className="nota producto__desc">{p.descripcion}</p>}

@@ -36,7 +36,7 @@ function Acceso({ alEntrar }) {
       {nuevo && (
         <>
           <Campo etiqueta="Nombre de tu negocio"><input name="nombre_negocio" required minLength={2} maxLength={60} /></Campo>
-          <Campo etiqueta="Tipo de negocio"><select name="tipo" required>{tipos.map((t) => <option key={t}>{t}</option>)}</select></Campo>
+          <Campo etiqueta="Tipo principal de tu negocio"><select name="tipo" required>{tipos.map((t) => <option key={t}>{t}</option>)}</select></Campo>
           <div className="formulario__par">
             <Campo etiqueta="Torre"><select name="torre" required>{torres.map((t) => <option key={t}>{t}</option>)}</select></Campo>
             <Campo etiqueta="Apartamento"><input name="apto" required maxLength={6} placeholder="Ej. 304" /></Campo>
@@ -89,7 +89,7 @@ function Panel({ usuario, alSalir }) {
     e.preventDefault(); setError(''); setOcupado(true);
     const form = e.currentTarget; const f = formAObj(e);
     const fotos = [...form.elements.foto.files].slice(0, MAX_FOTOS);
-    const cambios = { nombre: f.nombre, descripcion: f.descripcion || null, precio: f.precio === '' ? null : Number(f.precio) };
+    const cambios = { nombre: f.nombre, tipo: f.tipo, descripcion: f.descripcion || null, precio: f.precio === '' ? null : Number(f.precio) };
     try {
       if (editando) await datos.actualizarProducto(editando.id, cambios, fotos); else await datos.crearProducto(cambios, fotos);
       form.reset(); setEditando(null); await cargar();
@@ -114,6 +114,9 @@ function Panel({ usuario, alSalir }) {
         <form className="formulario hoja" onSubmit={publicar} key={editando?.id || 'nuevo'}>
           <h2 className="t-head">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
           <Campo etiqueta="Nombre"><input name="nombre" required minLength={2} maxLength={80} defaultValue={editando?.nombre} /></Campo>
+          <Campo etiqueta="Tipo de producto">
+            <select name="tipo" required defaultValue={editando?.tipo || usuario.perfil?.tipo}>{tipos.map((t) => <option key={t}>{t}</option>)}</select>
+          </Campo>
           <Campo etiqueta="Descripción (opcional)"><textarea name="descripcion" rows={3} maxLength={500} defaultValue={editando?.descripcion || ''} /></Campo>
           <Campo etiqueta="Precio en quetzales (vacío = “Precio por cotizar”)"><input name="precio" type="number" min="0" step="0.01" inputMode="decimal" defaultValue={editando?.precio ?? ''} /></Campo>
           <Campo etiqueta={`Fotos (opcional, hasta ${MAX_FOTOS})${editando ? '. Si eliges fotos nuevas, reemplazan las actuales' : ''}`}><input name="foto" type="file" accept="image/*" multiple /></Campo>
@@ -130,7 +133,7 @@ function Panel({ usuario, alSalir }) {
           <ul className="mios">
             {mios.map((p) => (
               <li key={p.id}>
-                <span>{p.nombre}{p.agotado && <span className="t-small nota"> · Agotado</span>}</span>
+                <span>{p.nombre} <span className="t-small nota">· {p.tipo}{p.agotado && ' · Agotado'}</span></span>
                 <span className="mios__acciones">
                   <button className="enlace" onClick={() => { setEditando(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar</button>
                   <button className="enlace" onClick={() => alternar(p)}>{p.agotado ? 'Hay existencias' : 'Marcar agotado'}</button>
