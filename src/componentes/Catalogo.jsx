@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { tipos, colorTipo } from '../contenido.js';
 import { datos, demo } from '../lib/datos.js';
 import Titulo from './Titulo.jsx';
+import SpotlightCard from '../reactbits/SpotlightCard/SpotlightCard.jsx';
+import CountUp from '../reactbits/CountUp/CountUp.jsx';
 
 const quetzales = (n) => (n == null ? 'Precio por cotizar' : `Q${Number(n).toLocaleString('es-GT')}`);
 const waUrl = (p) => `https://wa.me/502${p.vendedor.whatsapp}?text=${encodeURIComponent(
@@ -57,12 +59,14 @@ export default function Catalogo({ params }) {
           <a key={t} className="filtro" href={t ? `#/catalogo?tipo=${encodeURIComponent(t)}` : '#/catalogo'} aria-current={!vend && tipo === t ? 'true' : undefined}>{t || 'Todos'}</a>
         ))}
       </div>
+      {productos && !!ver.length && <p className="t-small nota"><CountUp to={ver.length} duration={1} /> {ver.length === 1 ? 'producto' : 'productos'}</p>}
       {error && <p role="alert">{error}</p>}
       {!error && !productos && <p className="nota">Cargando…</p>}
       {productos && !ver.length && <p className="t-lead">No encontramos productos con ese filtro. ¿Vendes algo? <a href="#/vendedor">Publícalo aquí</a>.</p>}
       <ul className="productos">
         {ver.map((p) => (
           <li key={p.id} className={`producto${p.agotado ? ' producto--agotado' : ''}`}>
+            <SpotlightCard className="producto__tarjeta" theme="light" spotlightColor="#E0705F" intensity={0.18}>
             <div className="foto foto--4x3">
               {p.imagenes.length
                 ? <div className="tira">{p.imagenes.map((src, i) => <img key={src} src={src} alt={`${p.nombre}, foto ${i + 1}`} loading="lazy" />)}</div>
@@ -80,6 +84,7 @@ export default function Catalogo({ params }) {
                 : <a className="btn btn--barra" href={waUrl(p)} target="_blank" rel="noopener">Cotizar por WhatsApp</a>}
               <Reportar id={p.id} />
             </div>
+            </SpotlightCard>
           </li>
         ))}
       </ul>

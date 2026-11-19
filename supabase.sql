@@ -130,3 +130,25 @@ end $$;
 
 revoke execute on function admin_reportes(), admin_resolver(uuid, boolean) from public, anon;
 grant execute on function admin_reportes(), admin_resolver(uuid, boolean) to authenticated;
+
+-- ---------- Versión 3: seguridad (si ya corriste lo anterior, pega y corre solo desde aquí) ----------
+-- Fotos: solo imágenes webp de hasta 2 MB, y solo vendedores aprobados pueden subir (el sitio ya reduce cada foto a webp).
+update storage.buckets set file_size_limit = 2097152, allowed_mime_types = '{image/webp}' where id = 'productos';
+drop policy "subir foto a tu carpeta" on storage.objects;
+create policy "subir foto a tu carpeta" on storage.objects for insert to authenticated
+  with check (bucket_id = 'productos' and (storage.foldername(name))[1] = auth.uid()::text
+    and exists (select 1 from public.profiles where id = auth.uid() and aprobado));
+
+-- Productos: el vendedor solo escribe las columnas del formulario. Así no puede poner "creado" en el futuro
+-- para quedar siempre de primero. Quitar el permiso de tabla también quita los de columna, por eso se vuelven a dar.
+revoke insert, update on productos from authenticated;
+grant insert (nombre, descripcion, precio, imagenes, agotado) on productos to authenticated;
+grant update (nombre, descripcion, precio, imagenes, agotado) on productos to authenticated;
+
+-- Reportes: máximo 20 por producto. Los de más se descartan sin error, para que nadie llene el panel de administración.
+create function limite_reportes() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if (select count(*) from reportes where producto = new.producto) >= 20 then return null; end if;
+  return new;
+end $$;
+create trigger limite_r before insert on reportes for each row execute function limite_reportes();

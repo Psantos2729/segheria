@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "reactbit": "node scripts/agregar-reactbit.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.1",
+    "gsap": "^3.13.0",
+    "motion": "^12.23.12",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

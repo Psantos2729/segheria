@@ -17,7 +17,7 @@ function Acceso({ alEntrar }) {
     e.preventDefault(); setError(''); setOcupado(true);
     const f = formAObj(e);
     try {
-      if (modo === 'olvido') { await datos.recuperar(f.email); setAviso('Si ese correo tiene cuenta, te enviamos un enlace para cambiar la contraseña.'); return; }
+      if (modo === 'olvido') { await datos.recuperar(f.email); setAviso('Si ese correo tiene cuenta, te enviamos un enlace para cambiar la contraseña. Ábrelo en este mismo navegador.'); return; }
       if (modo === 'nuevo') {
         const { email, pass, nombre_negocio, tipo, torre, apto, whatsapp } = f;
         const r = await datos.registrar({ email, pass, perfil: { nombre_negocio, tipo, torre: Number(torre), apto: apto.trim(), whatsapp } });
@@ -79,7 +79,9 @@ function Panel({ usuario, alSalir }) {
   const [editando, setEditando] = useState(null);
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const cargar = () => datos.listar().then((l) => setMios(l.filter((p) => p.vendedor_id === usuario.id))).catch(() => {});
+  const [fallo, setFallo] = useState(''); // errores de la lista (cargar, agotado, borrar); los del formulario van en "error"
+  const cargar = () => datos.listar().then((l) => { setMios(l.filter((p) => p.vendedor_id === usuario.id)); setFallo(''); })
+    .catch(() => setFallo('No se pudieron cargar tus productos. Revisa tu conexión y recarga la página.'));
   useEffect(() => { cargar(); }, []);
   const aprobado = usuario.perfil?.aprobado;
 
@@ -95,8 +97,14 @@ function Panel({ usuario, alSalir }) {
       setError(/límite/.test(err.message) ? err.message : 'No se pudo guardar. Revisa los datos e intenta otra vez.');
     } finally { setOcupado(false); }
   }
-  const alternar = async (p) => { await datos.actualizarProducto(p.id, { agotado: !p.agotado }); cargar(); };
-  const borrar = async (p) => { if (confirm(`¿Borrar "${p.nombre}"? No se puede deshacer.`)) { await datos.borrarProducto(p.id); if (editando?.id === p.id) setEditando(null); cargar(); } };
+  const intentar = async (accion) => {
+    setFallo('');
+    try { await accion(); await cargar(); } catch { setFallo('No se pudo guardar el cambio. Revisa tu conexión o vuelve a entrar.'); }
+  };
+  const alternar = (p) => intentar(() => datos.actualizarProducto(p.id, { agotado: !p.agotado }));
+  const borrar = (p) => {
+    if (confirm(`¿Borrar "${p.nombre}"? No se puede deshacer.`)) intentar(async () => { await datos.borrarProducto(p.id); if (editando?.id === p.id) setEditando(null); });
+  };
 
   return (
     <>
@@ -117,7 +125,8 @@ function Panel({ usuario, alSalir }) {
       {aprobado && (
         <>
           <h2 className="t-head panel__sub">Tus productos</h2>
-          {!mios.length && <p className="nota">Todavía no has publicado nada.</p>}
+          {fallo && <p role="alert" className="error">{fallo}</p>}
+          {!mios.length && !fallo && <p className="nota">Todavía no has publicado nada.</p>}
           <ul className="mios">
             {mios.map((p) => (
               <li key={p.id}>

@@ -1,22 +1,24 @@
-import { Fragment } from 'react';
 import { tipos, pasos, vendedores, galeria } from '../contenido.js';
 import { ruta as pub } from '../lib/ruta.js';
 import { useVarCss } from '../hooks/useVarCss.js';
 import CircularCarousel from '../reactbits/CircularCarousel/CircularCarousel.jsx';
-import Reveal from './Reveal.jsx';
+import BlurText from '../reactbits/BlurText/BlurText.jsx';
+import Aurora from '../reactbits/Aurora/Aurora.jsx';
+import ShinyText from '../reactbits/ShinyText/ShinyText.jsx';
+import FadeContent from '../reactbits/FadeContent/FadeContent.jsx';
+import AnimatedContent from '../reactbits/AnimatedContent/AnimatedContent.jsx';
 import Titulo from './Titulo.jsx';
-
-/* Cada palabra entra con desenfoque, escalonada. Solo CSS; se apaga con prefers-reduced-motion. */
-const Palabras = ({ texto }) => texto.split(' ').map((p, i) => <Fragment key={i}><span className="palabra" style={{ '--i': i }}>{p}</span>{' '}</Fragment>);
 
 const Pasos = ({ lista }) => (
   <ol className="pasos">
     {lista.map(([t, d], i) => (
-      <Reveal as="li" i={i} key={t}>
-        <span className="pasos__n serif" aria-hidden="true">{i + 1}</span>
-        <h3 className="t-lead serif">{t}</h3>
-        <p className="nota">{d}</p>
-      </Reveal>
+      <li key={t}>
+        <AnimatedContent distance={40} duration={0.7} delay={i * 0.12}>
+          <span className="pasos__n serif" aria-hidden="true">{i + 1}</span>
+          <h3 className="t-lead serif">{t}</h3>
+          <p className="nota">{d}</p>
+        </AnimatedContent>
+      </li>
     ))}
   </ol>
 );
@@ -27,7 +29,7 @@ function Lugar() {
   const items = galeria.fotos.map((f) => ({ src: pub(f.src), alt: f.alt, title: f.titulo }));
   return (
     <section className="seccion campo-oscuro" aria-labelledby="titulo-lugar">
-      <div className="envoltura"><Reveal><Titulo id="titulo-lugar" lineas={galeria.titulo} /></Reveal></div>
+      <div className="envoltura"><FadeContent blur duration={0.9}><Titulo id="titulo-lugar" lineas={galeria.titulo} /></FadeContent></div>
       <div className="carrusel3d">
         <CircularCarousel items={items} preset="cylinder" cardWidth={420} aspectRatio={1.2}
           autoplay="drift" speed={10} captions fadeColor={fondo} cornerRadius={14} intro="rise" />
@@ -40,13 +42,19 @@ export default function Inicio() {
   return (
     <>
       <section className="portada campo-oscuro">
+        <div className="portada__fondo" aria-hidden="true">
+          <Aurora colorStops={['#0F2A21', '#E0705F', '#8E2A46']} amplitude={0.9} blend={0.6} speed={0.6} opacity={0.55} />
+        </div>
         <div className="envoltura portada__in">
-          <h1 className="t-display"><span className="linea"><Palabras texto="Compra entre vecinos." /></span><span className="linea"><Palabras texto="Cotiza por WhatsApp." /></span></h1>
+          <div role="heading" aria-level="1" className="t-display portada__h1">
+            <BlurText text="Compra entre vecinos." delay={110} />
+            <BlurText text="Cotiza por WhatsApp." delay={110} />
+          </div>
           <div className="portada__fila">
             <div>
               <p className="t-lead portada__lead">Un catálogo con lo que venden los vecinos de Segheria. Filtra por tipo de negocio, elige un producto y pide tu cotización directo al vendedor.</p>
               <div className="portada__acciones">
-                <a className="btn btn--claro" href="#/catalogo">Ver catálogo</a>
+                <a className="btn btn--claro" href="#/catalogo"><ShinyText text="Ver catálogo" color="#25161B" shineColor="#E0705F" speed={3} /></a>
                 <a className="enlace" href="#/vendedor">Quiero vender</a>
               </div>
             </div>
@@ -61,7 +69,7 @@ export default function Inicio() {
       </section>
 
       <section className="seccion envoltura">
-        <Reveal><Titulo lineas={['Cómo funciona']} /></Reveal>
+        <FadeContent blur duration={0.9}><Titulo lineas={['Cómo funciona']} /></FadeContent>
         <Pasos lista={pasos} />
       </section>
 
@@ -69,7 +77,7 @@ export default function Inicio() {
 
       <section className="seccion campo-acento-vino">
         <div className="envoltura">
-          <Reveal><Titulo lineas={['¿Vendes algo?', 'Publícalo aquí.']} /></Reveal>
+          <FadeContent blur duration={0.9}><Titulo lineas={['¿Vendes algo?', 'Publícalo aquí.']} /></FadeContent>
           <Pasos lista={vendedores} />
           <p className="t-small portada__nota">Para cuidar a la comunidad, tu torre y apartamento se piden al registrarte y no se muestran al público. Revisamos cada cuenta antes de publicar.</p>
           <a className="btn btn--claro" href="#/vendedor">Crear mi cuenta de vendedor</a>

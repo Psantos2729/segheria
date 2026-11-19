@@ -137,7 +137,11 @@ p { text-wrap: pretty; }
 .portada__lead { max-width: 36ch; margin-top: 1.5rem; opacity: .9; }
 .portada__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; margin-top: 2rem; }
 .linea { display: block; }
-.portada h1 { font-size: clamp(1.75rem, 1rem + 4.5vw, 4.75rem); }
+.portada { position: relative; }
+.portada__fondo { position: absolute; inset: 0; pointer-events: none; }
+.portada__in { position: relative; }
+.portada__h1 p { margin: 0; }
+.portada__h1 { font-size: clamp(1.75rem, 1rem + 4.5vw, 4.75rem); }
 .pildoras { display: flex; flex-wrap: wrap; gap: .75rem; list-style: none; padding: 0; margin: 0; }
 .pildoras a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 1.25rem; background: var(--papel); color: var(--vino);
   border: 2px solid var(--vino); border-radius: 999px; font-weight: 600; text-decoration: none; }
@@ -146,9 +150,6 @@ p { text-wrap: pretty; }
 .portada__nota { max-width: 60ch; margin-block: 2rem; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .palabra { display: inline-block; opacity: 0; filter: blur(10px); transform: translateY(.4em);
-    animation: palabra 800ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 110ms + 150ms); }
-  @keyframes palabra { to { opacity: 1; filter: none; transform: none; } }
   .pildoras li { animation: flota 4.5s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -.7s); }
   .pildoras li:nth-child(even) { animation-duration: 5.5s; }
   @keyframes flota { from { transform: translateY(-6px); } to { transform: translateY(8px); } }
@@ -165,7 +166,8 @@ p { text-wrap: pretty; }
   color: var(--vino); font-weight: 500; text-decoration: none; }
 .filtro[aria-current] { background: var(--vino); color: #fff; }
 .productos { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: var(--medianil); list-style: none; padding: 0; margin-top: 2rem; }
-.producto { display: grid; grid-template-rows: auto 1fr; background: var(--papel); border-radius: var(--radio); overflow: hidden; }
+.producto { background: var(--papel); border-radius: var(--radio); overflow: hidden; }
+.producto__tarjeta.spotlight-card { display: grid; grid-template-rows: auto 1fr; height: 100%; padding: 0; border-radius: var(--radio); box-shadow: none; --spotlight-card-border: transparent; }
 .producto .foto { border-radius: 0; background: var(--acento); }
 .producto__sin { display: grid; place-items: center; height: 100%; font-size: var(--t-display); color: var(--sobre-acento); }
 .producto__cuerpo { display: grid; gap: .5rem; align-content: start; padding: var(--medianil) var(--relleno) var(--relleno); }
