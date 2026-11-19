@@ -152,3 +152,11 @@ begin
   return new;
 end $$;
 create trigger limite_r before insert on reportes for each row execute function limite_reportes();
+
+-- ---------- Versión 4: borrar fotos viejas (si ya corriste lo anterior, pega y corre solo desde aquí) ----------
+-- Al cambiar las fotos de un producto o borrarlo, el sitio borra los archivos viejos del vendedor.
+-- Borrar desde la API de Storage pide permiso de ver y de borrar, y cada quien solo toca su propia carpeta.
+create policy "ver tus fotos" on storage.objects for select to authenticated
+  using (bucket_id = 'productos' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "borrar tus fotos" on storage.objects for delete to authenticated
+  using (bucket_id = 'productos' and (storage.foldername(name))[1] = auth.uid()::text);

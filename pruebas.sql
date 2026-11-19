@@ -14,6 +14,7 @@ insert into auth.users (id, email, raw_user_meta_data) values
 update profiles set aprobado = true where id = '00000000-0000-0000-0000-0000000000a2';
 insert into productos (id, vendedor, nombre) values
   ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a2', 'Producto de prueba');
+insert into storage.objects (bucket_id, name) values ('productos', '00000000-0000-0000-0000-0000000000a2/foto.webp');
 
 -- 1. Un vendedor sin aprobar no publica productos ni sube fotos.
 set local role authenticated;
@@ -27,12 +28,19 @@ do $$ begin
     insert into storage.objects (bucket_id, name) values ('productos', '00000000-0000-0000-0000-0000000000a1/x.webp');
     raise exception 'FALLA: un vendedor sin aprobar subió una foto';
   exception when insufficient_privilege then null; end;
+  -- La regla de borrar usa la misma condición que la de ver: si no ve la foto ajena, tampoco la puede borrar.
+  if exists (select 1 from storage.objects where name = '00000000-0000-0000-0000-0000000000a2/foto.webp') then
+    raise exception 'FALLA: un vendedor ve los archivos de la carpeta de otro';
+  end if;
 end $$;
 
 -- 2. Un vendedor aprobado publica, pero no puede tocar "creado" (para quedar siempre de primero).
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
 do $$ begin
   insert into productos (nombre) values ('Publicación normal'); -- si esto falla, el vendedor aprobado no puede publicar
+  if not exists (select 1 from storage.objects where name = '00000000-0000-0000-0000-0000000000a2/foto.webp') then
+    raise exception 'FALLA: un vendedor no ve sus propias fotos, así que no podrá borrar las viejas';
+  end if;
   begin
     insert into productos (nombre, creado) values ('Truco', '2099-01-01');
     raise exception 'FALLA: un vendedor eligió la fecha "creado" al publicar';

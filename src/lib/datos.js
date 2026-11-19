@@ -82,6 +82,13 @@ async function subir(archivos) {
   }));
 }
 const ok = ({ data, error }) => { if (error) throw error; return data; };
+/* Fotos viejas: se leen antes del cambio y se borran después de que el cambio se guardó. */
+const fotosDe = async (id) => ok(await sb.from('productos').select('imagenes').eq('id', id).maybeSingle())?.imagenes || [];
+async function quitar(urls) {
+  const rutas = urls.map((u) => decodeURIComponent(u.split('/object/public/productos/')[1] || '')).filter(Boolean);
+  // Si falla, solo queda un archivo de más en Storage: no se interrumpe al vendedor por eso.
+  if (rutas.length) await sb.storage.from('productos').remove(rutas).catch(() => {});
+}
 
 const remoto = {
   async listar() {
@@ -103,10 +110,16 @@ const remoto = {
   async salir() { await sb.auth.signOut(); },
   async crearProducto(p, archivos = []) { ok(await sb.from('productos').insert({ ...p, imagenes: await subir(archivos) })); },
   async actualizarProducto(id, cambios, archivos = []) {
+    const viejas = archivos.length ? await fotosDe(id) : [];
     const nuevas = archivos.length ? { imagenes: await subir(archivos) } : {};
     ok(await sb.from('productos').update({ ...cambios, ...nuevas }).eq('id', id));
+    await quitar(viejas);
   },
-  async borrarProducto(id) { ok(await sb.from('productos').delete().eq('id', id)); },
+  async borrarProducto(id) {
+    const viejas = await fotosDe(id);
+    ok(await sb.from('productos').delete().eq('id', id));
+    await quitar(viejas);
+  },
   async reportar(producto, motivo) { ok(await sb.from('reportes').insert({ producto, motivo })); },
   async recuperar(email) { ok(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })); },
   async cambiarPass(pass) { ok(await sb.auth.updateUser({ password: pass })); },

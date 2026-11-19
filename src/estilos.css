@@ -12,7 +12,6 @@
   --relleno: clamp(1.5rem, 3.4vw, 3rem);
   --max: 90rem;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --stagger: 80ms;
 }
 
 /* ---------- 2. Reset y base ---------- */
@@ -119,13 +118,7 @@ p { text-wrap: pretty; }
 .pie__imprenta { grid-column: 1 / -1; text-align: center; font-size: var(--t-small); opacity: .75; }
 @media (max-width: 59.99em) { .pie__in { grid-template-columns: 1fr; } }
 
-/* ---------- 8. Entradas al hacer scroll (componente <Reveal>) ---------- */
-@media (prefers-reduced-motion: no-preference) {
-  .reveal { opacity: 0; transform: translateY(24px);
-    transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out);
-    transition-delay: calc(var(--i, 0) * var(--stagger)); }
-  .reveal.is-in { opacity: 1; transform: none; }
-}
+/* ---------- 8. Movimiento reducido ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; transition-delay: 0s !important; }
 }
