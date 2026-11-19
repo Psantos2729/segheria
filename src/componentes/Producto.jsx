@@ -1,0 +1,93 @@
+import { useEffect, useState } from 'react';
+import { negocio, colorTipo } from '../contenido.js';
+import { datos } from '../lib/datos.js';
+import { quetzales, waUrl } from './Catalogo.jsx';
+
+function Reportar({ id }) {
+  const [hecho, setHecho] = useState(false);
+  const [error, setError] = useState('');
+  async function enviar(e) {
+    e.preventDefault(); setError('');
+    try { await datos.reportar(id, new FormData(e.currentTarget).get('motivo').trim()); setHecho(true); }
+    catch { setError('No se pudo enviar. Intenta de nuevo.'); }
+  }
+  return (
+    <details className="reporte">
+      <summary className="t-small nota">Reportar este producto</summary>
+      {hecho ? <p className="t-small" role="status">Gracias, lo revisaremos.</p> : (
+        <form onSubmit={enviar}>
+          <label className="campo"><span className="t-small">¿Qué está mal?</span><textarea name="motivo" required minLength={3} maxLength={300} rows={2} /></label>
+          {error && <p role="alert" className="error t-small">{error}</p>}
+          <button className="btn btn--chico">Enviar reporte</button>
+        </form>
+      )}
+    </details>
+  );
+}
+
+/* Página de un producto: fotos grandes y todos sus datos sobre una tarjeta de vidrio. */
+export default function Producto({ params }) {
+  const id = params.get('id');
+  const [p, setP] = useState(undefined); // undefined = cargando, null = no existe
+  const [foto, setFoto] = useState(0);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    datos.listar().then((l) => setP(l.find((x) => x.id === id) || null)).catch(() => setError('No pudimos cargar el producto. Intenta de nuevo en un momento.'));
+  }, [id]);
+  useEffect(() => { if (p) document.title = `${p.nombre} | ${negocio.nombre}`; }, [p]);
+
+  if (error || !p) return (
+    <section className="seccion envoltura">
+      <p className={error ? 'error' : 'nota'} role={error ? 'alert' : undefined}>{error || (p === null ? 'Este producto ya no está en el catálogo.' : 'Cargando…')}</p>
+      <a className="enlace" href="#/catalogo">Volver al catálogo</a>
+    </section>
+  );
+
+  const fotos = p.imagenes;
+  const color = colorTipo[p.vendedor.tipo] || 'var(--acento)';
+  return (
+    <section className="detalle" style={{ '--tono': color }}>
+      <div className="detalle__fondo" aria-hidden="true">
+        {fotos[0] && <img src={fotos[0]} alt="" />}
+      </div>
+      <div className="envoltura detalle__in">
+        <a className="enlace detalle__volver" href="#/catalogo">← Volver al catálogo</a>
+        <article className="vidrio detalle__tarjeta">
+          <div className="detalle__galeria">
+            <div className={`foto foto--4x3${p.agotado ? ' foto--apagada' : ''}`}>
+              {fotos.length
+                ? <img src={fotos[foto]} alt={`${p.nombre}, foto ${foto + 1} de ${fotos.length}`} />
+                : <span className="producto__sin serif" aria-hidden="true" style={{ background: color }}>{p.nombre[0]}</span>}
+              {p.agotado && <span className="etiqueta">Agotado</span>}
+            </div>
+            {fotos.length > 1 && (
+              <ul className="miniaturas" aria-label="Fotos del producto">
+                {fotos.map((src, i) => (
+                  <li key={src}>
+                    <button type="button" aria-pressed={i === foto} aria-label={`Ver foto ${i + 1}`} onClick={() => setFoto(i)}>
+                      <img src={src} alt="" loading="lazy" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="detalle__info">
+            <p className="t-small detalle__tipo">{p.vendedor.tipo}</p>
+            <h1 className="t-head">{p.nombre}</h1>
+            <p className="detalle__precio serif">{quetzales(p.precio)}</p>
+            {p.descripcion && <p className="detalle__desc">{p.descripcion}</p>}
+            <dl className="detalle__datos">
+              <div><dt>Vende</dt><dd><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a></dd></div>
+              <div><dt>Torre</dt><dd>{p.vendedor.torre}</dd></div>
+            </dl>
+            {p.agotado
+              ? <p className="btn btn--barra btn--apagado">Agotado por ahora</p>
+              : <a className="btn btn--barra" href={waUrl(p)} target="_blank" rel="noopener">Cotizar por WhatsApp</a>}
+            <Reportar id={p.id} />
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}

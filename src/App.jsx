@@ -4,6 +4,7 @@ import { negocio } from './contenido.js';
 import Cabecera from './componentes/Cabecera.jsx';
 import Inicio from './componentes/Inicio.jsx';
 import Catalogo from './componentes/Catalogo.jsx';
+import Producto from './componentes/Producto.jsx';
 import Vendedor from './componentes/Vendedor.jsx';
 import Admin from './componentes/Admin.jsx';
 import { datos } from './lib/datos.js';
@@ -13,6 +14,7 @@ import Pie from './componentes/Pie.jsx';
 const paginas = {
   '/': [Inicio, negocio.nombre],
   '/catalogo': [Catalogo, `Catálogo | ${negocio.nombre}`],
+  '/producto': [Producto, `Producto | ${negocio.nombre}`],
   '/vendedor': [Vendedor, `Vender | ${negocio.nombre}`],
   '/admin': [Admin, `Administración | ${negocio.nombre}`]
 };

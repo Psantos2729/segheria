@@ -5,33 +5,11 @@ import Titulo from './Titulo.jsx';
 import SpotlightCard from '../reactbits/SpotlightCard/SpotlightCard.jsx';
 import CountUp from '../reactbits/CountUp/CountUp.jsx';
 
-const quetzales = (n) => (n == null ? 'Precio por cotizar' : `Q${Number(n).toLocaleString('es-GT')}`);
-const waUrl = (p) => `https://wa.me/502${p.vendedor.whatsapp}?text=${encodeURIComponent(
+export const quetzales = (n) => (n == null ? 'Precio por cotizar' : `Q${Number(n).toLocaleString('es-GT')}`);
+export const waUrl = (p) => `https://wa.me/502${p.vendedor.whatsapp}?text=${encodeURIComponent(
   `Hola, vi "${p.nombre}" en Catálogo Segheria y quiero cotizarlo${p.precio != null ? ` (${quetzales(p.precio)})` : ''}.`)}`;
 // Sin tildes ni mayúsculas, para que "galeta" y "Galetá" encuentren lo mismo.
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-
-function Reportar({ id }) {
-  const [hecho, setHecho] = useState(false);
-  const [error, setError] = useState('');
-  async function enviar(e) {
-    e.preventDefault(); setError('');
-    try { await datos.reportar(id, new FormData(e.currentTarget).get('motivo').trim()); setHecho(true); }
-    catch { setError('No se pudo enviar. Intenta de nuevo.'); }
-  }
-  return (
-    <details className="reporte">
-      <summary className="t-small nota">Reportar</summary>
-      {hecho ? <p className="t-small" role="status">Gracias, lo revisaremos.</p> : (
-        <form onSubmit={enviar}>
-          <label className="campo"><span className="t-small">¿Qué está mal?</span><textarea name="motivo" required minLength={3} maxLength={300} rows={2} /></label>
-          {error && <p role="alert" className="error t-small">{error}</p>}
-          <button className="btn btn--chico">Enviar reporte</button>
-        </form>
-      )}
-    </details>
-  );
-}
 
 export default function Catalogo({ params }) {
   const tipo = params.get('tipo') || '';
@@ -67,22 +45,25 @@ export default function Catalogo({ params }) {
         {ver.map((p) => (
           <li key={p.id} className={`producto${p.agotado ? ' producto--agotado' : ''}`}>
             <SpotlightCard className="producto__tarjeta" theme="light" spotlightColor="#E0705F" intensity={0.18}>
-            <div className="foto foto--4x3">
+            <a className="foto foto--4x3" href={`#/producto?id=${p.id}`} tabIndex={-1} aria-hidden="true">
               {p.imagenes.length
-                ? <div className="tira">{p.imagenes.map((src, i) => <img key={src} src={src} alt={`${p.nombre}, foto ${i + 1}`} loading="lazy" />)}</div>
-                : <span className="producto__sin serif" aria-hidden="true" style={{ background: colorTipo[p.vendedor.tipo] }}>{p.nombre[0]}</span>}
+                ? <img src={p.imagenes[0]} alt="" loading="lazy" />
+                : <span className="producto__sin serif" style={{ background: colorTipo[p.vendedor.tipo] }}>{p.nombre[0]}</span>}
               {p.agotado && <span className="etiqueta">Agotado</span>}
-            </div>
+              {p.imagenes.length > 1 && <span className="etiqueta etiqueta--fotos">{p.imagenes.length} fotos</span>}
+            </a>
             <div className="producto__cuerpo">
               <p className="t-small nota">{p.vendedor.tipo}</p>
-              <h2 className="t-lead serif">{p.nombre}</h2>
+              <h2 className="t-lead serif"><a className="producto__enlace" href={`#/producto?id=${p.id}`}>{p.nombre}</a></h2>
               <p className="producto__precio">{quetzales(p.precio)}</p>
-              {p.descripcion && <p className="nota">{p.descripcion}</p>}
+              {p.descripcion && <p className="nota producto__desc">{p.descripcion}</p>}
               <p className="t-small nota"><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a> · Torre {p.vendedor.torre}</p>
-              {p.agotado
-                ? <p className="btn btn--barra btn--apagado">Agotado por ahora</p>
-                : <a className="btn btn--barra" href={waUrl(p)} target="_blank" rel="noopener">Cotizar por WhatsApp</a>}
-              <Reportar id={p.id} />
+              <div className="producto__acciones">
+                {p.agotado
+                  ? <p className="btn btn--barra btn--apagado">Agotado por ahora</p>
+                  : <a className="btn btn--barra" href={waUrl(p)} target="_blank" rel="noopener">Cotizar por WhatsApp</a>}
+                <a className="enlace" href={`#/producto?id=${p.id}`}>Ver detalles y fotos</a>
+              </div>
             </div>
             </SpotlightCard>
           </li>

@@ -158,14 +158,18 @@ p { text-wrap: pretty; }
 .filtro { display: inline-flex; align-items: center; min-height: 44px; padding: 0 1.125rem; border: 2px solid var(--vino); border-radius: 999px;
   color: var(--vino); font-weight: 500; text-decoration: none; }
 .filtro[aria-current] { background: var(--vino); color: #fff; }
-.productos { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: var(--medianil); list-style: none; padding: 0; margin-top: 2rem; }
+.productos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); gap: clamp(1rem, 2.4vw, 2rem); list-style: none; padding: 0; margin-top: 2rem; }
 .producto { background: var(--papel); border-radius: var(--radio); overflow: hidden; }
 .producto__tarjeta.spotlight-card { display: grid; grid-template-rows: auto 1fr; height: 100%; padding: 0; border-radius: var(--radio); box-shadow: none; --spotlight-card-border: transparent; }
 .producto .foto { border-radius: 0; background: var(--acento); }
 .producto__sin { display: grid; place-items: center; height: 100%; font-size: var(--t-display); color: var(--sobre-acento); }
-.producto__cuerpo { display: grid; gap: .5rem; align-content: start; padding: var(--medianil) var(--relleno) var(--relleno); }
+.producto__cuerpo { display: grid; gap: .625rem; align-content: start; padding: 1.5rem clamp(1.25rem, 2.4vw, 1.75rem) 1.75rem; }
+.producto__enlace, .producto a.foto { text-decoration: none; }
+.producto__enlace:hover { text-decoration: underline; text-underline-offset: .2em; }
+.producto__desc { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.producto__acciones { display: grid; justify-items: center; gap: .25rem; margin-top: .5rem; }
+.etiqueta--fotos { left: auto; right: .75rem; background: rgb(0 0 0 / .55); }
 .producto__precio { font-weight: 600; color: var(--vino); }
-.producto .btn { margin-top: .5rem; }
 
 /* ---------- Vendedor ---------- */
 .panel { max-width: 40rem; }
@@ -213,3 +217,36 @@ p { text-wrap: pretty; }
 }
 @media (max-width: 59.99em) { .portada__fila { grid-template-columns: 1fr; } }
 .pildoras { margin-top: 2.5rem; }
+
+/* ---------- Página de producto: tarjeta de vidrio sobre la foto desenfocada ---------- */
+.detalle { position: relative; isolation: isolate; overflow: hidden; padding-block: clamp(2rem, 5vw, 4.5rem) clamp(3rem, 7vw, 6rem);
+  background: radial-gradient(60% 55% at 12% 20%, var(--tono), transparent 70%),
+    radial-gradient(55% 60% at 88% 15%, var(--vino), transparent 70%),
+    radial-gradient(70% 60% at 70% 95%, var(--acento), transparent 70%), var(--oscuro); }
+.detalle__fondo { position: absolute; inset: -10%; z-index: -1; }
+.detalle__fondo img { width: 100%; height: 100%; object-fit: cover; filter: blur(48px) saturate(1.5); opacity: .7; }
+.detalle__in { display: grid; gap: 1rem; }
+.detalle__volver { justify-self: start; color: #fff; }
+.vidrio { background: rgb(255 255 255 / .62); border: 1px solid rgb(255 255 255 / .7); border-radius: 24px;
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / .35), inset 0 1px 0 rgb(255 255 255 / .8); }
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .vidrio { background: rgb(255 255 255 / .38); -webkit-backdrop-filter: blur(28px) saturate(1.6); backdrop-filter: blur(28px) saturate(1.6); }
+}
+.detalle__tarjeta { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(1.5rem, 3.5vw, 3.5rem); padding: clamp(1rem, 3vw, 2.5rem); }
+.detalle__galeria { display: grid; gap: .75rem; align-content: start; }
+.detalle__galeria .foto { border-radius: 16px; background: rgb(255 255 255 / .4); }
+.foto--apagada img { opacity: .6; }
+.miniaturas { display: flex; flex-wrap: wrap; gap: .5rem; }
+.miniaturas button { width: 4.5rem; aspect-ratio: 1; overflow: hidden; border-radius: 10px; border: 2px solid transparent; opacity: .7;
+  transition: opacity 160ms ease, border-color 160ms ease; }
+.miniaturas button[aria-pressed="true"] { border-color: var(--vino); opacity: 1; }
+.miniaturas img { width: 100%; height: 100%; object-fit: cover; }
+@media (hover: hover) and (pointer: fine) { .miniaturas button:hover { opacity: 1; } }
+.detalle__info { display: grid; gap: 1rem; align-content: start; padding-block: .5rem; }
+.detalle__tipo { justify-self: start; padding: .25rem .75rem; background: rgb(255 255 255 / .6); border-radius: 999px; font-weight: 600; color: var(--vino); }
+.detalle__precio { font-size: var(--t-head); font-weight: 600; color: var(--vino); }
+.detalle__desc { white-space: pre-line; max-width: 60ch; }
+.detalle__datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding-block: 1rem; border-block: 1px solid rgb(37 22 27 / .15); }
+.detalle__datos dt { font-size: var(--t-small); color: var(--nota); }
+.detalle__datos dd { font-weight: 600; }
+@media (max-width: 47.99em) { .detalle__tarjeta { grid-template-columns: 1fr; } }
