@@ -9,6 +9,7 @@ import Vendedor from './componentes/Vendedor.jsx';
 import Admin from './componentes/Admin.jsx';
 import { datos } from './lib/datos.js';
 import Pie from './componentes/Pie.jsx';
+import Codigo from './componentes/Codigo.jsx';
 
 /* Para una página nueva: crea el componente y agrégalo aquí. */
 const paginas = {
@@ -31,6 +32,7 @@ export default function App() {
       <Cabecera ruta={ruta} />
       <main id="principal" tabIndex={-1}><Pagina params={params} /></main>
       <Pie />
+      <Codigo />
     </>
   );
 }

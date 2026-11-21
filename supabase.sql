@@ -181,3 +181,58 @@ grant insert (tipo), update (tipo) on productos to authenticated;
 -- ---------- Versión 6: fotos JPEG desde iPhone (si ya corriste lo anterior, pega y corre solo desde aquí) ----------
 -- Safari no sabe crear webp, así que desde el iPhone las fotos se suben en JPEG (también reducidas a 900px).
 update storage.buckets set allowed_mime_types = '{image/webp,image/jpeg}' where id = 'productos';
+
+-- ---------- Versión 7: código de entrada (si ya corriste lo anterior, pega y corre solo desde aquí) ----------
+-- Antes: Authentication > Sign In / Providers > activa "Allow anonymous sign-ins".
+-- Torre y WhatsApp solo los ve quien puso el código de los condóminos (o un vendedor aprobado).
+-- Quien pone el código bien queda en "miembros" para siempre en ese navegador; cambiar el código NO saca a quien ya entró.
+create table miembros (id uuid primary key references auth.users on delete cascade, desde timestamptz not null default now());
+create table acceso (unica boolean primary key default true check (unica), codigo text not null check (length(codigo) >= 8));
+create table intentos (id uuid primary key references auth.users on delete cascade, n int not null default 0);
+alter table miembros enable row level security;
+alter table acceso enable row level security;
+alter table intentos enable row level security;
+revoke all on miembros, acceso, intentos from anon, authenticated;
+
+-- CAMBIA este código (mínimo 8 caracteres) antes de compartirlo. Para cambiarlo después: update acceso set codigo = 'NUEVO-CODIGO';
+insert into acceso (codigo) values ('CAMBIA-ESTE-CODIGO');
+
+-- Torre y WhatsApp salen de la lectura directa; solo se piden con contactos().
+revoke select (torre, whatsapp) on profiles from anon, authenticated;
+
+create function es_condomino() returns boolean language sql stable security definer set search_path = public as
+$$ select exists (select 1 from miembros where id = auth.uid())
+   or exists (select 1 from profiles where id = auth.uid() and aprobado) $$;
+
+-- Cada quien ve su propio contacto; el de los demás, solo si es condómino.
+create function contactos() returns table (id uuid, torre int, whatsapp text) language sql stable security definer set search_path = public as
+$$ select p.id, p.torre, p.whatsapp from profiles p where p.id = auth.uid() or (p.aprobado and es_condomino()) $$;
+
+-- Máximo 10 códigos malos por cuenta; el resto del freno lo pone Supabase al limitar las cuentas anónimas por IP.
+create function entrar_con_codigo(codigo text) returns boolean language plpgsql security definer set search_path = public as $$
+declare usados int;
+begin
+  if auth.uid() is null then return false; end if;
+  insert into intentos (id) values (auth.uid()) on conflict do nothing;
+  select i.n into usados from intentos i where i.id = auth.uid();
+  if usados >= 10 then raise exception 'Demasiados intentos. Pide el código otra vez.'; end if;
+  if lower(trim(codigo)) = lower((select a.codigo from acceso a)) then
+    insert into miembros (id) values (auth.uid()) on conflict do nothing;
+    return true;
+  end if;
+  update intentos set n = n + 1 where id = auth.uid();
+  return false;
+end $$;
+
+revoke execute on function es_condomino(), contactos(), entrar_con_codigo(text) from public, anon;
+grant execute on function es_condomino(), contactos(), entrar_con_codigo(text) to authenticated;
+
+-- Las sesiones anónimas del código no son vendedores: el trigger de perfiles las salta (sin esto, falla "Database error creating anonymous user").
+create or replace function nuevo_perfil() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.is_anonymous then return new; end if;
+  insert into profiles (id, nombre_negocio, tipo, torre, apto, whatsapp)
+  values (new.id, new.raw_user_meta_data->>'nombre_negocio', new.raw_user_meta_data->>'tipo',
+          (new.raw_user_meta_data->>'torre')::int, new.raw_user_meta_data->>'apto', new.raw_user_meta_data->>'whatsapp');
+  return new;
+end $$;

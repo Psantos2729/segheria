@@ -13,7 +13,7 @@ export const torres = [1, 2, 3, 4, 5, 6];
 
 export const pasos = [
   ['Elige un tipo de negocio', 'Filtra el catálogo por categoría y mira lo que ofrece cada vecino.'],
-  ['Abre el producto', 'Cada producto trae su precio y quién lo vende, con su torre.'],
+  ['Abre el producto', 'Cada producto trae su precio y quién lo vende. Con el código de los condóminos ves también su torre.'],
   ['Cotiza por WhatsApp', 'Un botón te abre el chat con el vendedor y el producto ya escrito.']
 ];
 

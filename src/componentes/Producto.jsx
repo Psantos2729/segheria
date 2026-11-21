@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { negocio, colorTipo } from '../contenido.js';
 import { datos, recientes } from '../lib/datos.js';
 import ProfileCard from '../reactbits/ProfileCard/ProfileCard.jsx';
-import { quetzales, waUrl } from './Catalogo.jsx';
+import { quetzales, Cotizar, abrirChat } from './Catalogo.jsx';
 
 function Reportar({ id }) {
   const [hecho, setHecho] = useState(false);
@@ -67,10 +67,10 @@ export default function Producto({ params }) {
                 name={p.nombre}
                 title={quetzales(p.precio)}
                 handle=""
-                status={`${p.vendedor.nombre_negocio} · Torre ${p.vendedor.torre}`}
+                status={p.vendedor.nombre_negocio + (p.vendedor.torre != null ? ` · Torre ${p.vendedor.torre}` : '')}
                 statusColor={p.agotado ? '#9CA3AF' : '#22c55e'}
                 contactText={p.agotado ? '' : 'Cotizar'}
-                onContactClick={() => window.open(waUrl(p), '_blank', 'noopener')}
+                onContactClick={() => abrirChat(p)}
                 backdropColor={color}
                 theme="light"
                 radius={18}
@@ -98,11 +98,11 @@ export default function Producto({ params }) {
             {p.descripcion && <p className="detalle__desc">{p.descripcion}</p>}
             <dl className="detalle__datos">
               <div><dt>Vende</dt><dd><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a></dd></div>
-              <div><dt>Torre</dt><dd>{p.vendedor.torre}</dd></div>
+              {p.vendedor.torre != null && <div><dt>Torre</dt><dd>{p.vendedor.torre}</dd></div>}
             </dl>
             {p.agotado
               ? <p className="btn btn--barra btn--apagado">Agotado por ahora</p>
-              : <a className="btn btn--barra" href={waUrl(p)} target="_blank" rel="noopener">Cotizar por WhatsApp</a>}
+              : <Cotizar p={p} />}
             <Reportar id={p.id} />
           </div>
         </article>

@@ -8,6 +8,12 @@ import CountUp from '../reactbits/CountUp/CountUp.jsx';
 export const quetzales = (n) => (n == null ? 'Precio por cotizar' : `Q${Number(n).toLocaleString('es-GT')}`);
 export const waUrl = (p) => `https://wa.me/502${p.vendedor.whatsapp}?text=${encodeURIComponent(
   `Hola, vi "${p.nombre}" en Catálogo Segheria y quiero cotizarlo${p.precio != null ? ` (${quetzales(p.precio)})` : ''}.`)}`;
+const pedirCodigo = () => window.dispatchEvent(new Event('pedir-codigo'));
+// Sin el código de los condóminos no llega el WhatsApp: el botón pide el código en vez de abrir el chat.
+export const Cotizar = ({ p }) => (p.vendedor.whatsapp
+  ? <a className="btn btn--barra" href={waUrl(p)} target="_blank" rel="noopener">Cotizar por WhatsApp</a>
+  : <button type="button" className="btn btn--barra" onClick={pedirCodigo}>Pon el código para cotizar</button>);
+export const abrirChat = (p) => (p.vendedor.whatsapp ? window.open(waUrl(p), '_blank', 'noopener') : pedirCodigo());
 // Sin tildes ni mayúsculas, para que "galeta" y "Galetá" encuentren lo mismo.
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
@@ -57,11 +63,11 @@ export default function Catalogo({ params }) {
               <h2 className="t-lead serif"><a className="producto__enlace" href={`#/producto?id=${p.id}`}>{p.nombre}</a></h2>
               <p className="producto__precio">{quetzales(p.precio)}</p>
               {p.descripcion && <p className="nota producto__desc">{p.descripcion}</p>}
-              <p className="t-small nota"><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a> · Torre {p.vendedor.torre}</p>
+              <p className="t-small nota"><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a>{p.vendedor.torre != null && ` · Torre ${p.vendedor.torre}`}</p>
               <div className="producto__acciones">
                 {p.agotado
                   ? <p className="btn btn--barra btn--apagado">Agotado por ahora</p>
-                  : <a className="btn btn--barra" href={waUrl(p)} target="_blank" rel="noopener">Cotizar por WhatsApp</a>}
+                  : <Cotizar p={p} />}
                 <a className="enlace" href={`#/producto?id=${p.id}`}>Ver detalles y fotos</a>
               </div>
             </div>

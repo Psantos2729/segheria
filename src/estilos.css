@@ -290,3 +290,7 @@ p { text-wrap: pretty; }
   @keyframes visor-entra { from { opacity: 0; transform: scale(.92); } }
   @keyframes visor-fondo { from { opacity: 0; } }
 }
+
+/* Pantalla del código de los condóminos */
+.codigo { width: min(26rem, calc(100vw - 2rem)); border: 0; margin: auto; box-shadow: 0 20px 60px rgb(10 8 9 / .35); }
+.codigo::backdrop { background: rgb(10 8 9 / .7); }

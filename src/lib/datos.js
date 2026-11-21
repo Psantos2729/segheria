@@ -40,6 +40,8 @@ const local = {
       .filter((p) => p.vendedor)
       .map((p) => ({ ...p, tipo: p.tipo || p.vendedor.tipo })); // productos de antes de la v5 no traen tipo
   },
+  async esMiembro() { return true; }, // el modo demo no pide código
+  async entrarConCodigo() { return true; },
   async usuario() { const d = leer(); return d.usuarios.find((u) => u.id === d.sesion) || null; },
   async registrar({ email, pass, perfil }) {
     const d = leer();
@@ -73,7 +75,9 @@ const local = {
 };
 
 /* ---------- Supabase ---------- */
-const COLS = 'id,nombre,descripcion,precio,imagenes,agotado,tipo,vendedor,perfil:profiles(nombre_negocio,tipo,torre,whatsapp)';
+// Torre y WhatsApp ya no se leen de aquí: solo salen de contactos() si pusiste el código (ver supabase.sql, versión 7).
+const COLS = 'id,nombre,descripcion,precio,imagenes,agotado,tipo,vendedor,perfil:profiles(nombre_negocio,tipo)';
+const haySesion = async () => !!(await sb.auth.getSession()).data.session;
 async function subir(archivos) {
   if (!archivos.length) return [];
   const { data: { user } } = await sb.auth.getUser();
@@ -97,13 +101,20 @@ async function quitar(urls) {
 const remoto = {
   async listar() {
     const data = ok(await sb.from('productos').select(COLS).order('creado', { ascending: false }));
-    return data.map(({ perfil, ...p }) => ({ ...p, tipo: p.tipo || perfil.tipo, imagenes: p.imagenes || [], vendedor_id: p.vendedor, vendedor: perfil }));
+    const c = new Map((await haySesion() ? ok(await sb.rpc('contactos')) : []).map((x) => [x.id, x])); // vacío si no pusiste el código
+    return data.map(({ perfil, ...p }) => ({ ...p, tipo: p.tipo || perfil.tipo, imagenes: p.imagenes || [], vendedor_id: p.vendedor, vendedor: { ...perfil, ...c.get(p.vendedor) } }));
+  },
+  async esMiembro() { return (await haySesion()) && ok(await sb.rpc('es_condomino')) === true; },
+  async entrarConCodigo(codigo) {
+    if (!(await haySesion())) ok(await sb.auth.signInAnonymously()); // sesión sin correo: solo recuerda que ya pusiste el código
+    return ok(await sb.rpc('entrar_con_codigo', { codigo })) === true;
   },
   async usuario() {
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) return null;
-    const { data } = await sb.from('profiles').select('nombre_negocio,tipo,torre,whatsapp,aprobado').eq('id', session.user.id).maybeSingle();
-    return { id: session.user.id, email: session.user.email, perfil: data };
+    if (!session || session.user.is_anonymous) return null; // la sesión del código no es una cuenta de vendedor
+    const { data } = await sb.from('profiles').select('nombre_negocio,tipo,aprobado').eq('id', session.user.id).maybeSingle();
+    const mio = ok(await sb.rpc('contactos')).find((x) => x.id === session.user.id);
+    return { id: session.user.id, email: session.user.email, perfil: data && { ...data, ...mio } };
   },
   async registrar({ email, pass, perfil }) {
     const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: perfil } });

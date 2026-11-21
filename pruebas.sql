@@ -11,6 +11,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
    '{"nombre_negocio":"Prueba nuevo","tipo":"Otros","torre":"1","apto":"101","whatsapp":"12345678"}'),
   ('00000000-0000-0000-0000-0000000000a2', 'prueba-aprobado@segheria.test',
    '{"nombre_negocio":"Prueba aprobado","tipo":"Otros","torre":"2","apto":"202","whatsapp":"87654321"}');
+insert into auth.users (id, is_anonymous) values
+  ('00000000-0000-0000-0000-0000000000a3', true), ('00000000-0000-0000-0000-0000000000a4', true);
 update profiles set aprobado = true where id = '00000000-0000-0000-0000-0000000000a2';
 insert into productos (id, vendedor, nombre) values
   ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a2', 'Producto de prueba');
@@ -66,6 +68,60 @@ do $$ begin
   for i in 1..25 loop
     insert into reportes (producto, motivo) values ('00000000-0000-0000-0000-0000000000b1', 'Reporte de prueba');
   end loop;
+end $$;
+
+-- 4. Torre y WhatsApp: sin código no se ven; con el código correcto sí; el código malo se corta a los 10 intentos.
+set local role anon;
+set local request.jwt.claims = '{"role":"anon"}';
+do $$ begin
+  begin
+    perform torre from profiles;
+    raise exception 'FALLA: el público puede leer la torre';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform whatsapp from profiles;
+    raise exception 'FALLA: el público puede leer el WhatsApp';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform * from contactos();
+    raise exception 'FALLA: el público llamó a contactos()';
+  exception when insufficient_privilege then null; end;
+end $$;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}';
+do $$ begin
+  if (select count(*) from contactos() where id <> '00000000-0000-0000-0000-0000000000a3') > 0 then
+    raise exception 'FALLA: alguien sin código ve el contacto de otros';
+  end if;
+  begin
+    perform codigo from acceso;
+    raise exception 'FALLA: se puede leer el código de entrada';
+  exception when insufficient_privilege then null; end;
+  for i in 1..10 loop
+    if entrar_con_codigo('codigo-malo') then raise exception 'FALLA: un código malo entró'; end if;
+  end loop;
+  begin
+    perform entrar_con_codigo('codigo-malo');
+    raise exception 'FALLA: no se cortaron los intentos';
+  exception when raise_exception then
+    if sqlerrm like 'FALLA%' then raise; end if;
+  end;
+end $$;
+
+reset role;
+select set_config('prueba.codigo', (select codigo from acceso), true); -- usa tu código real, sin cambiarlo
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}';
+do $$ begin
+  if not entrar_con_codigo(' ' || upper(current_setting('prueba.codigo')) || ' ') then raise exception 'FALLA: el código bueno no entró'; end if;
+  if not es_condomino() then raise exception 'FALLA: quien puso el código no es condómino'; end if;
+  if not exists (select 1 from contactos() where id = '00000000-0000-0000-0000-0000000000a2' and whatsapp = '87654321') then
+    raise exception 'FALLA: un condómino no ve el contacto de un vendedor aprobado';
+  end if;
+  if exists (select 1 from contactos() where id = '00000000-0000-0000-0000-0000000000a1') then
+    raise exception 'FALLA: un condómino ve el contacto de un vendedor sin aprobar';
+  end if;
 end $$;
 
 reset role;
