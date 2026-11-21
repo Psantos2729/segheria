@@ -5,7 +5,7 @@ create table profiles (
   id uuid primary key references auth.users on delete cascade,
   nombre_negocio text not null check (length(nombre_negocio) between 2 and 60),
   tipo text not null,
-  torre int not null check (torre between 1 and 6),
+  torre int not null check (torre between 1 and 7),
   apto text not null check (length(apto) between 1 and 6),
   whatsapp text not null check (whatsapp ~ '^[0-9]{8}$'),
   aprobado boolean not null default false
@@ -236,3 +236,7 @@ begin
           (new.raw_user_meta_data->>'torre')::int, new.raw_user_meta_data->>'apto', new.raw_user_meta_data->>'whatsapp');
   return new;
 end $$;
+
+-- ---------- Versión 8: siete torres (si ya corriste lo anterior, pega y corre solo desde aquí) ----------
+alter table profiles drop constraint profiles_torre_check;
+alter table profiles add constraint profiles_torre_check check (torre between 1 and 7);

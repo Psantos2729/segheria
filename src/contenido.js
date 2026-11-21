@@ -9,7 +9,7 @@ export const negocio = {
 };
 
 export const tipos = ['Comida y postres', 'Belleza y cuidado', 'Mascotas', 'Hogar y decoración', 'Ropa y accesorios', 'Servicios', 'Otros'];
-export const torres = [1, 2, 3, 4, 5, 6];
+export const torres = [1, 2, 3, 4, 5, 6, 7];
 
 export const pasos = [
   ['Elige un tipo de negocio', 'Filtra el catálogo por categoría y mira lo que ofrece cada vecino.'],
@@ -18,7 +18,7 @@ export const pasos = [
 ];
 
 export const vendedores = [
-  ['Crea tu cuenta', 'Con tu correo, tu torre (1 a 6) y tu número de apartamento.'],
+  ['Crea tu cuenta', 'Con tu correo, tu torre (1 a 7) y tu número de apartamento.'],
   ['Sube tus productos', 'Nombre, descripción, precio y una foto si la tienes.'],
   ['Recibe cotizaciones', 'Los vecinos te escriben directo a tu WhatsApp.']
 ];
