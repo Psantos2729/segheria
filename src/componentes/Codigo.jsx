@@ -6,7 +6,7 @@ const guardar = () => { try { sessionStorage.setItem(OMITIDO, '1'); } catch { /*
 const omitido = () => { try { return !!sessionStorage.getItem(OMITIDO); } catch { return false; } };
 
 /* Pide el código de los condóminos una sola vez: se abre al entrar si aún no lo pusiste, o desde un botón con el evento "pedir-codigo".
-   Sin código el catálogo se ve, pero sin torre ni WhatsApp (eso lo decide la base de datos, no esta pantalla). */
+   Sin código el catálogo se ve, pero sin WhatsApp (eso lo decide la base de datos, no esta pantalla). */
 export default function Codigo() {
   const ref = useRef(null);
   const [error, setError] = useState('');
@@ -31,8 +31,8 @@ export default function Codigo() {
   return (
     <dialog ref={ref} className="codigo hoja" aria-labelledby="codigo-t" onClose={guardar}>
       <form className="formulario" onSubmit={enviar}>
-        <h2 id="codigo-t" className="t-head">Código de los condóminos</h2>
-        <p className="nota">Escribe el código que compartió la administración. Solo se pide una vez en este dispositivo; con él ves la torre y el WhatsApp de cada vecino.</p>
+        <h2 id="codigo-t" className="t-head">Código de entrada</h2>
+        <p className="nota">Escribe el código de la comunidad. Solo se pide una vez en este dispositivo; con él puedes cotizar por WhatsApp.</p>
         <label className="campo"><span>Código</span>
           <input name="codigo" required autoFocus autoComplete="off" autoCapitalize="none" spellCheck="false" maxLength={60} /></label>
         {error && <p role="alert" className="error t-small">{error}</p>}

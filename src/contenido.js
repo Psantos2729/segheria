@@ -9,16 +9,15 @@ export const negocio = {
 };
 
 export const tipos = ['Comida y postres', 'Belleza y cuidado', 'Mascotas', 'Hogar y decoración', 'Ropa y accesorios', 'Servicios', 'Otros'];
-export const torres = [1, 2, 3, 4, 5, 6, 7];
 
 export const pasos = [
   ['Elige un tipo de negocio', 'Filtra el catálogo por categoría y mira lo que ofrece cada vecino.'],
-  ['Abre el producto', 'Cada producto trae su precio y quién lo vende. Con el código de los condóminos ves también su torre.'],
+  ['Abre el producto', 'Cada producto trae su precio y quién lo vende.'],
   ['Cotiza por WhatsApp', 'Un botón te abre el chat con el vendedor y el producto ya escrito.']
 ];
 
 export const vendedores = [
-  ['Crea tu cuenta', 'Con tu correo, tu torre (1 a 7) y tu número de apartamento.'],
+  ['Crea tu cuenta', 'Con tu correo y tu número de WhatsApp, que debe estar en la lista de vendedores aprobados.'],
   ['Sube tus productos', 'Nombre, descripción, precio y una foto si la tienes.'],
   ['Recibe cotizaciones', 'Los vecinos te escriben directo a tu WhatsApp.']
 ];

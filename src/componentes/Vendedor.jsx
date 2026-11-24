@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { tipos, torres } from '../contenido.js';
-import { datos, demo, MAX_FOTOS } from '../lib/datos.js';
+import { tipos } from '../contenido.js';
+import { datos, demo, MAX_FOTOS, MAX_NEGOCIOS } from '../lib/datos.js';
 import Titulo from './Titulo.jsx';
 
 const Campo = ({ etiqueta, children }) => <label className="campo"><span>{etiqueta}</span>{children}</label>;
@@ -19,8 +19,8 @@ function Acceso({ alEntrar }) {
     try {
       if (modo === 'olvido') { await datos.recuperar(f.email); setAviso('Si ese correo tiene cuenta, te enviamos un enlace para cambiar la contraseña. Ábrelo en este mismo navegador.'); return; }
       if (modo === 'nuevo') {
-        const { email, pass, nombre_negocio, tipo, torre, apto, whatsapp } = f;
-        const r = await datos.registrar({ email, pass, perfil: { nombre_negocio, tipo, torre: Number(torre), apto: apto.trim(), whatsapp } });
+        const { email, pass, nombre_negocio, tipo, whatsapp } = f;
+        const r = await datos.registrar({ email, pass, perfil: { nombre_negocio, tipo, whatsapp } });
         if (r.aviso) { setAviso(r.aviso); return; }
       } else await datos.entrar(f.email, f.pass);
       alEntrar();
@@ -37,12 +37,8 @@ function Acceso({ alEntrar }) {
         <>
           <Campo etiqueta="Nombre de tu negocio"><input name="nombre_negocio" required minLength={2} maxLength={60} /></Campo>
           <Campo etiqueta="Tipo principal de tu negocio"><select name="tipo" required>{tipos.map((t) => <option key={t}>{t}</option>)}</select></Campo>
-          <div className="formulario__par">
-            <Campo etiqueta="Torre"><select name="torre" required>{torres.map((t) => <option key={t}>{t}</option>)}</select></Campo>
-            <Campo etiqueta="Apartamento"><input name="apto" required maxLength={6} placeholder="Ej. 304" /></Campo>
-          </div>
-          <Campo etiqueta="WhatsApp (8 dígitos)"><input name="whatsapp" required pattern="[0-9]{8}" inputMode="numeric" placeholder="55551234" /></Campo>
-          <p className="t-small nota">Tu torre y apartamento no se muestran al público; solo los usamos para verificar que eres vecino.</p>
+          <Campo etiqueta="Tu número de WhatsApp (8 dígitos)"><input name="whatsapp" required pattern="[0-9]{8}" inputMode="numeric" placeholder="55551234" /></Campo>
+          <p className="t-small nota">Solo se crean cuentas con números aprobados por la administración.</p>
         </>
       )}
       {error && <p role="alert" className="error">{error}</p>}
@@ -74,13 +70,13 @@ function NuevaPass({ alTerminar }) {
   );
 }
 
-function Panel({ usuario, alSalir }) {
+function Panel({ usuario, alSalir, refrescar }) {
   const [mios, setMios] = useState([]);
   const [editando, setEditando] = useState(null);
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [fallo, setFallo] = useState(''); // errores de la lista (cargar, agotado, borrar); los del formulario van en "error"
-  const cargar = () => datos.listar().then((l) => { setMios(l.filter((p) => p.vendedor_id === usuario.id)); setFallo(''); })
+  const cargar = () => datos.listar().then((l) => { setMios(l.filter((p) => p.dueno === usuario.id)); setFallo(''); })
     .catch(() => setFallo('No se pudieron cargar tus productos. Revisa tu conexión y recarga la página.'));
   useEffect(() => { cargar(); }, []);
   const aprobado = usuario.perfil?.aprobado;
@@ -91,7 +87,7 @@ function Panel({ usuario, alSalir }) {
     const fotos = [...form.elements.foto.files].slice(0, MAX_FOTOS);
     const cambios = { nombre: f.nombre, tipo: f.tipo, descripcion: f.descripcion || null, precio: f.precio === '' ? null : Number(f.precio) };
     try {
-      if (editando) await datos.actualizarProducto(editando.id, cambios, fotos); else await datos.crearProducto(cambios, fotos);
+      if (editando) await datos.actualizarProducto(editando.id, cambios, fotos); else await datos.crearProducto({ ...cambios, negocio: f.negocio }, fotos);
       form.reset(); setEditando(null); await cargar();
     } catch (err) {
       console.error(err); // el detalle queda en la consola para revisarlo
@@ -104,6 +100,21 @@ function Panel({ usuario, alSalir }) {
     setFallo('');
     try { await accion(); await cargar(); } catch { setFallo('No se pudo guardar el cambio. Revisa tu conexión o vuelve a entrar.'); }
   };
+  const [negEditando, setNegEditando] = useState(null);
+  const negocios = usuario.negocios || [];
+  async function guardarNegocio(e) {
+    e.preventDefault(); setFallo(''); const form = e.currentTarget; const f = formAObj(e);
+    try {
+      if (negEditando) await datos.actualizarNegocio(negEditando.id, { nombre: f.nombre, tipo: f.tipo }); else await datos.crearNegocio({ nombre: f.nombre, tipo: f.tipo });
+      form.reset(); setNegEditando(null); await refrescar(); await cargar();
+    } catch (err) { setFallo(/límite/.test(err.message) ? err.message : 'No se pudo guardar el negocio. Revisa los datos e intenta otra vez.'); }
+  }
+  const borrarNegocio = async (n) => {
+    if (!confirm(`¿Borrar el negocio "${n.nombre}" y todos sus productos? No se puede deshacer.`)) return;
+    setFallo('');
+    try { await datos.borrarNegocio(n.id); setNegEditando(null); setEditando(null); await refrescar(); await cargar(); }
+    catch { setFallo('No se pudo borrar el negocio. Revisa tu conexión o vuelve a entrar.'); }
+  };
   const alternar = (p) => intentar(() => datos.actualizarProducto(p.id, { agotado: !p.agotado }));
   const borrar = (p) => {
     if (confirm(`¿Borrar "${p.nombre}"? No se puede deshacer.`)) intentar(async () => { await datos.borrarProducto(p.id); if (editando?.id === p.id) setEditando(null); });
@@ -111,14 +122,19 @@ function Panel({ usuario, alSalir }) {
 
   return (
     <>
-      <p className="t-lead">{usuario.perfil?.nombre_negocio} · Torre {usuario.perfil?.torre} · {usuario.perfil?.tipo}</p>
+      <p className="t-lead">{negocios.map((n) => n.nombre).join(' · ')}</p>
       {!aprobado && <p className="aviso">Tu cuenta está en revisión. Cuando la aprobemos podrás publicar productos.</p>}
       {aprobado && (
         <form className="formulario hoja" onSubmit={publicar} key={editando?.id || 'nuevo'}>
           <h2 className="t-head">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
+          {!editando && (
+            <Campo etiqueta="Negocio">
+              <select name="negocio" required>{negocios.map((n) => <option key={n.id} value={n.id}>{n.nombre}</option>)}</select>
+            </Campo>
+          )}
           <Campo etiqueta="Nombre"><input name="nombre" required minLength={2} maxLength={80} defaultValue={editando?.nombre} /></Campo>
           <Campo etiqueta="Tipo de producto">
-            <select name="tipo" required defaultValue={editando?.tipo || usuario.perfil?.tipo}>{tipos.map((t) => <option key={t}>{t}</option>)}</select>
+            <select name="tipo" required defaultValue={editando?.tipo || negocios[0]?.tipo}>{tipos.map((t) => <option key={t}>{t}</option>)}</select>
           </Campo>
           <Campo etiqueta="Descripción (opcional)"><textarea name="descripcion" rows={3} maxLength={500} defaultValue={editando?.descripcion || ''} /></Campo>
           <Campo etiqueta="Precio en quetzales (vacío = “Precio por cotizar”)"><input name="precio" type="number" min="0" step="0.01" inputMode="decimal" defaultValue={editando?.precio ?? ''} /></Campo>
@@ -130,13 +146,34 @@ function Panel({ usuario, alSalir }) {
       )}
       {aprobado && (
         <>
+          <h2 className="t-head panel__sub">Tus negocios</h2>
+          <ul className="mios">
+            {negocios.map((n) => (
+              <li key={n.id}>
+                <span>{n.nombre} <span className="t-small nota">· {n.tipo}</span></span>
+                <span className="mios__acciones">
+                  <button className="enlace" onClick={() => setNegEditando(n)}>Editar</button>
+                  {negocios.length > 1 && <button className="enlace" onClick={() => borrarNegocio(n)}>Borrar</button>}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {(negEditando || negocios.length < MAX_NEGOCIOS) && (
+            <form className="formulario hoja" onSubmit={guardarNegocio} key={negEditando?.id || 'nuevo-negocio'}>
+              <h2 className="t-head">{negEditando ? 'Editar negocio' : 'Agregar otro negocio'}</h2>
+              <Campo etiqueta="Nombre del negocio"><input name="nombre" required minLength={2} maxLength={60} defaultValue={negEditando?.nombre} /></Campo>
+              <Campo etiqueta="Tipo principal"><select name="tipo" required defaultValue={negEditando?.tipo}>{tipos.map((t) => <option key={t}>{t}</option>)}</select></Campo>
+              <button className="btn">{negEditando ? 'Guardar negocio' : 'Agregar negocio'}</button>
+              {negEditando && <button type="button" className="enlace" onClick={() => setNegEditando(null)}>Cancelar edición</button>}
+            </form>
+          )}
           <h2 className="t-head panel__sub">Tus productos</h2>
           {fallo && <p role="alert" className="error">{fallo}</p>}
           {!mios.length && !fallo && <p className="nota">Todavía no has publicado nada.</p>}
           <ul className="mios">
             {mios.map((p) => (
               <li key={p.id}>
-                <span>{p.nombre} <span className="t-small nota">· {p.tipo}{p.agotado && ' · Agotado'}</span></span>
+                <span>{p.nombre} <span className="t-small nota">· {p.vendedor.nombre_negocio} · {p.tipo}{p.agotado && ' · Agotado'}</span></span>
                 <span className="mios__acciones">
                   <button className="enlace" onClick={() => { setEditando(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar</button>
                   <button className="enlace" onClick={() => alternar(p)}>{p.agotado ? 'Hay existencias' : 'Marcar agotado'}</button>
@@ -163,7 +200,7 @@ export default function Vendedor({ params }) {
       {demo && <p className="aviso t-small">Modo demo: los datos se guardan solo en este navegador. Prueba con demo@segheria.test / demo1234.</p>}
       {usuario === undefined ? <p className="nota">Cargando…</p>
         : recuperando ? <NuevaPass alTerminar={refrescar} />
-        : usuario ? <Panel usuario={usuario} alSalir={refrescar} /> : <Acceso alEntrar={refrescar} />}
+        : usuario ? <Panel usuario={usuario} alSalir={refrescar} refrescar={refrescar} /> : <Acceso alEntrar={refrescar} />}
     </section>
   );
 }

@@ -79,7 +79,7 @@ export default function Inicio() {
         <div className="envoltura">
           <FadeContent blur duration={0.9}><Titulo lineas={['¿Vendes algo?', 'Publícalo aquí.']} /></FadeContent>
           <Pasos lista={vendedores} />
-          <p className="t-small portada__nota">Para cuidar a la comunidad, tu torre y apartamento se piden al registrarte y no se muestran al público. Revisamos cada cuenta antes de publicar.</p>
+          <p className="t-small portada__nota">Para cuidar a la comunidad, solo pueden vender los números de WhatsApp aprobados por la administración.</p>
           <a className="btn btn--claro" href="#/vendedor">Crear mi cuenta de vendedor</a>
         </div>
       </section>

@@ -67,7 +67,7 @@ export default function Producto({ params }) {
                 name={p.nombre}
                 title={quetzales(p.precio)}
                 handle=""
-                status={p.vendedor.nombre_negocio + (p.vendedor.torre != null ? ` · Torre ${p.vendedor.torre}` : '')}
+                status={p.vendedor.nombre_negocio}
                 statusColor={p.agotado ? '#9CA3AF' : '#22c55e'}
                 contactText={p.agotado ? '' : 'Cotizar'}
                 onContactClick={() => abrirChat(p)}
@@ -98,7 +98,6 @@ export default function Producto({ params }) {
             {p.descripcion && <p className="detalle__desc">{p.descripcion}</p>}
             <dl className="detalle__datos">
               <div><dt>Vende</dt><dd><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a></dd></div>
-              {p.vendedor.torre != null && <div><dt>Torre</dt><dd>{p.vendedor.torre}</dd></div>}
             </dl>
             {p.agotado
               ? <p className="btn btn--barra btn--apagado">Agotado por ahora</p>

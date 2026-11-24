@@ -63,7 +63,7 @@ export default function Catalogo({ params }) {
               <h2 className="t-lead serif"><a className="producto__enlace" href={`#/producto?id=${p.id}`}>{p.nombre}</a></h2>
               <p className="producto__precio">{quetzales(p.precio)}</p>
               {p.descripcion && <p className="nota producto__desc">{p.descripcion}</p>}
-              <p className="t-small nota"><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a>{p.vendedor.torre != null && ` · Torre ${p.vendedor.torre}`}</p>
+              <p className="t-small nota"><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a></p>
               <div className="producto__acciones">
                 {p.agotado
                   ? <p className="btn btn--barra btn--apagado">Agotado por ahora</p>

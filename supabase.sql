@@ -240,3 +240,4 @@ end $$;
 -- ---------- Versión 8: siete torres (si ya corriste lo anterior, pega y corre solo desde aquí) ----------
 alter table profiles drop constraint profiles_torre_check;
 alter table profiles add constraint profiles_torre_check check (torre between 1 and 7);
+

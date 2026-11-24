@@ -9,8 +9,9 @@ export default function Admin() {
   const [error, setError] = useState('');
 
   const [reportes, setReportes] = useState([]);
-  const cargar = () => Promise.all([datos.adminPerfiles(), datos.adminReportes()])
-    .then(([l, r]) => { setLista(l); setReportes(r); }).catch(() => setError('No se pudo cargar la lista.'));
+  const [numeros, setNumeros] = useState([]);
+  const cargar = () => Promise.all([datos.adminPerfiles(), datos.adminReportes(), datos.adminNumeros()])
+    .then(([l, r, n]) => { setLista(l); setReportes(r); setNumeros(n); }).catch(() => setError('No se pudo cargar la lista.'));
   useEffect(() => {
     datos.esAdmin().then((ok) => { setEstado(ok ? 'si' : 'no'); if (ok) cargar(); }).catch(() => setEstado('no'));
   }, []);
@@ -28,6 +29,19 @@ export default function Admin() {
     </section>
   );
 
+  async function agregar(e) {
+    e.preventDefault(); setError('');
+    const form = e.currentTarget;
+    const lista = [...new Set(new FormData(form).get('numeros').split(/[\s,;]+/).filter(Boolean))];
+    const malos = lista.filter((n) => !/^[0-9]{8}$/.test(n));
+    if (malos.length) { setError(`No tienen 8 dígitos: ${malos.join(', ')}. No se agregó ninguno.`); return; }
+    try { await datos.adminAgregarNumeros(lista); form.reset(); await cargar(); } catch { setError('No se pudieron agregar los números.'); }
+  }
+  async function quitar(n) {
+    if (!confirm(`¿Quitar ${n} de la lista? Si ya tiene cuenta, se le quita la aprobación.`)) return;
+    setError('');
+    try { await datos.adminQuitarNumero(n); await cargar(); } catch { setError('No se pudo quitar el número.'); }
+  }
   async function resolver(r, borrar) {
     if (borrar && !confirm(`¿Borrar "${r.producto_nombre}"? No se puede deshacer.`)) return;
     setError('');
@@ -39,14 +53,14 @@ export default function Admin() {
   return (
     <section className="seccion envoltura">
       <Titulo as="h1" lineas={['Administración']} />
-      <p className="t-lead">{pendientes ? `${pendientes} cuenta(s) por aprobar` : 'No hay cuentas pendientes.'}</p>
+      <p className="t-lead">{pendientes ? `${pendientes} cuenta(s) sin aprobación` : 'Todas las cuentas están aprobadas.'}</p>
       {error && <p role="alert" className="error">{error}</p>}
       <ul className="admin">
         {lista.map((p) => (
           <li key={p.id} className="hoja">
             <div>
-              <p className="serif t-lead">{p.nombre_negocio} <span className="t-small nota">· {p.tipo}</span></p>
-              <p className="t-small">Torre {p.torre} · Apto {p.apto} · WhatsApp {p.whatsapp}</p>
+              <p className="serif t-lead">{p.negocios || '(sin negocio)'}</p>
+              <p className="t-small">WhatsApp {p.whatsapp}</p>
               <p className="t-small nota">{p.email}</p>
             </div>
             <span className="mios__acciones">
@@ -55,6 +69,26 @@ export default function Admin() {
                 {p.aprobado ? 'Quitar aprobación' : 'Aprobar'}
               </button>
             </span>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="t-head panel__sub">Vendedores aprobados</h2>
+      <p className="t-small nota">Solo estos números pueden crear cuenta de vendedor.</p>
+      <form className="formulario hoja" onSubmit={agregar}>
+        <label className="campo"><span>Agregar números (8 dígitos, separados por comas)</span>
+          <textarea name="numeros" required rows={3} placeholder="55551234, 55555678, 40001111" /></label>
+        <button className="btn btn--chico">Agregar</button>
+      </form>
+      {!numeros.length && <p className="nota">La lista está vacía: nadie puede registrarse.</p>}
+      <ul className="admin">
+        {numeros.map((n) => (
+          <li key={n.whatsapp} className="hoja">
+            <div>
+              <p className="serif t-lead">{n.whatsapp}</p>
+              <p className="t-small nota">{n.negocios ? `Cuenta: ${n.negocios}` : 'Aún sin cuenta'}</p>
+            </div>
+            <button className="enlace" onClick={() => quitar(n.whatsapp)}>Quitar</button>
           </li>
         ))}
       </ul>

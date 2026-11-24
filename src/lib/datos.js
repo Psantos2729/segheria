@@ -8,7 +8,8 @@ export const demo = !(URL && KEY);
 const sb = demo ? null : createClient(URL, KEY, { auth: { flowType: 'pkce' } });
 
 export const MAX_FOTOS = 4;
-export const MAX_PRODUCTOS = 20; // el mismo límite está en supabase.sql
+export const MAX_PRODUCTOS = 20; // por negocio; el mismo límite está en supabase.sql
+export const MAX_NEGOCIOS = 5;
 const SIN_DEMO = 'Esto no está disponible en modo demo.';
 
 /* Reduce la foto a 900px en webp antes de subirla (barata para el vendedor y para el catálogo).
@@ -25,7 +26,7 @@ async function reducir(archivo, max = 900) {
 const aDataUrl = (blob) => new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
 
 /* ---------- Modo demo (localStorage). shortcut: contraseñas en claro, solo para probar; se acaba al configurar Supabase ---------- */
-const LS = 'segheria-demo';
+const LS = 'segheria-demo-2'; // el 2 es la forma con negocios; los datos demo de antes se ignoran
 const vacio = () => ({ usuarios: [], productos: [], sesion: null });
 const leer = () => { try { return JSON.parse(localStorage.getItem(LS)) || vacio(); } catch { return vacio(); } };
 const guardar = (d) => localStorage.setItem(LS, JSON.stringify(d));
@@ -35,18 +36,20 @@ const fotosLocal = (archivos) => Promise.all(archivos.map(async (a) => aDataUrl(
 const local = {
   async listar() {
     const d = leer();
-    return d.productos
-      .map((p) => ({ ...p, imagenes: p.imagenes || (p.imagen ? [p.imagen] : []), vendedor_id: p.vendedor, vendedor: d.usuarios.find((u) => u.id === p.vendedor)?.perfil }))
-      .filter((p) => p.vendedor)
-      .map((p) => ({ ...p, tipo: p.tipo || p.vendedor.tipo })); // productos de antes de la v5 no traen tipo
+    const negocios = new Map(d.usuarios.flatMap((u) => u.negocios.map((n) => [n.id, { ...n, whatsapp: u.perfil.whatsapp }])));
+    return d.productos.map((p) => {
+      const n = negocios.get(p.negocio);
+      return n && { ...p, imagenes: p.imagenes || [], dueno: p.vendedor, vendedor_id: n.id, tipo: p.tipo || n.tipo,
+        vendedor: { nombre_negocio: n.nombre, tipo: n.tipo, whatsapp: n.whatsapp } };
+    }).filter(Boolean);
   },
   async esMiembro() { return true; }, // el modo demo no pide código
   async entrarConCodigo() { return true; },
   async usuario() { const d = leer(); return d.usuarios.find((u) => u.id === d.sesion) || null; },
-  async registrar({ email, pass, perfil }) {
+  async registrar({ email, pass, perfil: { nombre_negocio, tipo, whatsapp } }) {
     const d = leer();
     if (d.usuarios.some((u) => u.email === email)) throw new Error('Ese correo ya tiene cuenta.');
-    const u = { id: uid(), email, pass, perfil: { ...perfil, aprobado: true } };
+    const u = { id: uid(), email, pass, perfil: { whatsapp, aprobado: true }, negocios: [{ id: uid(), nombre: nombre_negocio, tipo }] };
     d.usuarios.push(u); d.sesion = u.id; guardar(d);
     return { aviso: '' };
   },
@@ -58,7 +61,7 @@ const local = {
   async salir() { const d = leer(); d.sesion = null; guardar(d); },
   async crearProducto(p, archivos = []) {
     const d = leer();
-    if (d.productos.filter((x) => x.vendedor === d.sesion).length >= MAX_PRODUCTOS) throw new Error(`Llegaste al límite de ${MAX_PRODUCTOS} productos.`);
+    if (d.productos.filter((x) => x.negocio === p.negocio).length >= MAX_PRODUCTOS) throw new Error(`Llegaste al límite de ${MAX_PRODUCTOS} productos.`);
     d.productos.unshift({ id: uid(), vendedor: d.sesion, agotado: false, ...p, imagenes: await fotosLocal(archivos) }); guardar(d);
   },
   async actualizarProducto(id, cambios, archivos = []) {
@@ -66,17 +69,30 @@ const local = {
     const d = leer(); d.productos = d.productos.map((p) => (p.id === id ? { ...p, ...cambios, ...nuevas } : p)); guardar(d);
   },
   async borrarProducto(id) { const d = leer(); d.productos = d.productos.filter((p) => p.id !== id); guardar(d); },
+  async crearNegocio(n) {
+    const d = leer(); const u = d.usuarios.find((x) => x.id === d.sesion);
+    if (u.negocios.length >= MAX_NEGOCIOS) throw new Error(`Llegaste al límite de ${MAX_NEGOCIOS} negocios.`);
+    u.negocios.push({ id: uid(), ...n }); guardar(d);
+  },
+  async actualizarNegocio(id, cambios) {
+    const d = leer(); d.usuarios.forEach((u) => { u.negocios = u.negocios.map((n) => (n.id === id ? { ...n, ...cambios } : n)); }); guardar(d);
+  },
+  async borrarNegocio(id) {
+    const d = leer(); d.usuarios.forEach((u) => { u.negocios = u.negocios.filter((n) => n.id !== id); });
+    d.productos = d.productos.filter((p) => p.negocio !== id); guardar(d);
+  },
   async reportar() { /* shortcut: en demo no hay a quién reportar */ },
   async recuperar() { throw new Error(SIN_DEMO); },
   async cambiarPass() { throw new Error(SIN_DEMO); },
   alRecuperar() { return () => {}; },
   async esAdmin() { return false; }, // el modo demo no tiene administrador
-  async adminPerfiles() { return []; }, async adminAprobar() {}, async adminReportes() { return []; }, async adminResolver() {}
+  async adminPerfiles() { return []; }, async adminAprobar() {}, async adminReportes() { return []; }, async adminResolver() {},
+  async adminNumeros() { return []; }, async adminAgregarNumeros() {}, async adminQuitarNumero() {}
 };
 
 /* ---------- Supabase ---------- */
-// Torre y WhatsApp ya no se leen de aquí: solo salen de contactos() si pusiste el código (ver supabase.sql, versión 7).
-const COLS = 'id,nombre,descripcion,precio,imagenes,agotado,tipo,vendedor,perfil:profiles(nombre_negocio,tipo)';
+// El WhatsApp ya no se lee de aquí: solo sale de contactos() si pusiste el código (ver supabase.sql, versiones 7 y 9).
+const COLS = 'id,nombre,descripcion,precio,imagenes,agotado,tipo,vendedor,negocio:negocios(id,nombre,tipo)'; // vendedor = la cuenta dueña
 const haySesion = async () => !!(await sb.auth.getSession()).data.session;
 async function subir(archivos) {
   if (!archivos.length) return [];
@@ -102,7 +118,9 @@ const remoto = {
   async listar() {
     const data = ok(await sb.from('productos').select(COLS).order('creado', { ascending: false }));
     const c = new Map((await haySesion() ? ok(await sb.rpc('contactos')) : []).map((x) => [x.id, x])); // vacío si no pusiste el código
-    return data.map(({ perfil, ...p }) => ({ ...p, tipo: p.tipo || perfil.tipo, imagenes: p.imagenes || [], vendedor_id: p.vendedor, vendedor: { ...perfil, ...c.get(p.vendedor) } }));
+    // vendedor_id = id del negocio (lo que filtra el catálogo); dueno = la cuenta, para saber cuáles productos son míos.
+    return data.map(({ negocio, vendedor, ...p }) => ({ ...p, tipo: p.tipo || negocio.tipo, imagenes: p.imagenes || [], dueno: vendedor, vendedor_id: negocio.id,
+      vendedor: { nombre_negocio: negocio.nombre, tipo: negocio.tipo, whatsapp: c.get(vendedor)?.whatsapp } }));
   },
   async esMiembro() { return (await haySesion()) && ok(await sb.rpc('es_condomino')) === true; },
   async entrarConCodigo(codigo) {
@@ -112,13 +130,15 @@ const remoto = {
   async usuario() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session || session.user.is_anonymous) return null; // la sesión del código no es una cuenta de vendedor
-    const { data } = await sb.from('profiles').select('nombre_negocio,tipo,aprobado').eq('id', session.user.id).maybeSingle();
+    const { data } = await sb.from('profiles').select('aprobado').eq('id', session.user.id).maybeSingle();
     const mio = ok(await sb.rpc('contactos')).find((x) => x.id === session.user.id);
-    return { id: session.user.id, email: session.user.email, perfil: data && { ...data, ...mio } };
+    const negocios = data ? ok(await sb.from('negocios').select('id,nombre,tipo').eq('dueno', session.user.id).order('nombre')) : [];
+    return { id: session.user.id, email: session.user.email, perfil: data && { ...data, ...mio }, negocios };
   },
   async registrar({ email, pass, perfil }) {
     const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: perfil } });
-    if (error) throw error;
+    // Si el número no está en la lista (o ya tiene cuenta), el trigger de la base falla y Supabase solo dice "Database error".
+    if (error) throw /database error/i.test(error.message) ? new Error('Ese número no está aprobado, o ya tiene una cuenta. Pide a la administración que lo apruebe.') : error;
     return { aviso: data.session ? '' : 'Te enviamos un correo para confirmar tu cuenta.' };
   },
   async entrar(email, pass) { const { error } = await sb.auth.signInWithPassword({ email, password: pass }); if (error) throw new Error('Correo o contraseña incorrectos.'); },
@@ -135,6 +155,13 @@ const remoto = {
     ok(await sb.from('productos').delete().eq('id', id));
     await quitar(viejas);
   },
+  async crearNegocio(n) { ok(await sb.from('negocios').insert(n)); },
+  async actualizarNegocio(id, cambios) { ok(await sb.from('negocios').update(cambios).eq('id', id)); },
+  async borrarNegocio(id) {
+    const viejas = ok(await sb.from('productos').select('imagenes').eq('negocio', id)).flatMap((p) => p.imagenes || []);
+    ok(await sb.from('negocios').delete().eq('id', id)); // los productos se van con él
+    await quitar(viejas);
+  },
   async reportar(producto, motivo) { ok(await sb.from('reportes').insert({ producto, motivo })); },
   async recuperar(email) { ok(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })); },
   async cambiarPass(pass) { ok(await sb.auth.updateUser({ password: pass })); },
@@ -147,7 +174,10 @@ const remoto = {
   async adminPerfiles() { return ok(await sb.rpc('admin_perfiles')); },
   async adminAprobar(id, valor) { ok(await sb.rpc('admin_aprobar', { uid: id, valor })); },
   async adminReportes() { return ok(await sb.rpc('admin_reportes')); },
-  async adminResolver(id, borrar) { ok(await sb.rpc('admin_resolver', { rid: id, borrar })); }
+  async adminResolver(id, borrar) { ok(await sb.rpc('admin_resolver', { rid: id, borrar })); },
+  async adminNumeros() { return ok(await sb.rpc('admin_numeros')); },
+  async adminAgregarNumeros(numeros) { ok(await sb.rpc('admin_agregar_numeros', { numeros })); },
+  async adminQuitarNumero(numero) { ok(await sb.rpc('admin_quitar_numero', { numero })); }
 };
 
 export const datos = demo ? local : remoto;
@@ -160,10 +190,10 @@ datos.listar = async () => (recientes.productos = await listar());
 
 /* Productos de ejemplo del modo demo, para ver los filtros. Se cargan una vez. */
 if (demo && !leer().usuarios.length) {
-  const id = 'demo1';
-  guardar({ sesion: null, usuarios: [{ id, email: 'demo@segheria.test', pass: 'demo1234', perfil: { nombre_negocio: 'Cocina de la Torre 3 (ejemplo)', tipo: 'Comida y postres', torre: 3, apto: '304', whatsapp: '50000000', aprobado: true } }],
+  const id = 'demo1', neg = 'demoneg1';
+  guardar({ sesion: null, usuarios: [{ id, email: 'demo@segheria.test', pass: 'demo1234', perfil: { whatsapp: '50000000', aprobado: true }, negocios: [{ id: neg, nombre: 'Cocina de ejemplo', tipo: 'Comida y postres' }] }],
     productos: [
-      { id: 'e1', vendedor: id, nombre: 'Pastel de zanahoria (ejemplo)', descripcion: 'Producto de ejemplo del modo demo.', precio: 120, imagenes: [], agotado: false },
-      { id: 'e2', vendedor: id, nombre: 'Caja de galletas (ejemplo)', descripcion: 'Producto de ejemplo del modo demo.', precio: null, imagenes: [], agotado: true }
+      { id: 'e1', vendedor: id, negocio: neg, nombre: 'Pastel de zanahoria (ejemplo)', descripcion: 'Producto de ejemplo del modo demo.', precio: 120, imagenes: [], agotado: false },
+      { id: 'e2', vendedor: id, negocio: neg, nombre: 'Caja de galletas (ejemplo)', descripcion: 'Producto de ejemplo del modo demo.', precio: null, imagenes: [], agotado: true }
     ] });
 }
