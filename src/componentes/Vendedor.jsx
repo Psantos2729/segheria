@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { tipos } from '../contenido.js';
-import { datos, demo, MAX_FOTOS, MAX_NEGOCIOS } from '../lib/datos.js';
+import { datos, demo, enOferta, MAX_FOTOS, MAX_NEGOCIOS } from '../lib/datos.js';
 import Titulo from './Titulo.jsx';
 
 const Campo = ({ etiqueta, children }) => <label className="campo"><span>{etiqueta}</span>{children}</label>;
+const aFecha = (iso) => { if (!iso) return ''; const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const formAObj = (e) => Object.fromEntries(new FormData(e.currentTarget));
 
 function Acceso({ alEntrar }) {
@@ -85,7 +86,12 @@ function Panel({ usuario, alSalir, refrescar }) {
     e.preventDefault(); setError(''); setOcupado(true);
     const form = e.currentTarget; const f = formAObj(e);
     const fotos = [...form.elements.foto.files].slice(0, MAX_FOTOS);
-    const cambios = { nombre: f.nombre, tipo: f.tipo, descripcion: f.descripcion || null, precio: f.precio === '' ? null : Number(f.precio) };
+    const precio = f.precio === '' ? null : Number(f.precio);
+    const oferta = f.oferta === '' ? null : Number(f.oferta);
+    if (oferta != null && (precio == null || oferta >= precio)) { setError('El precio de oferta debe ser menor que el precio normal.'); setOcupado(false); return; }
+    // La oferta dura hasta el final del día elegido; sin fecha, hasta que la quites.
+    const hasta = oferta != null && f.hasta ? new Date(`${f.hasta}T23:59:59`).toISOString() : null;
+    const cambios = { nombre: f.nombre, tipo: f.tipo, descripcion: f.descripcion || null, precio, oferta_precio: oferta, oferta_hasta: hasta };
     try {
       if (editando) await datos.actualizarProducto(editando.id, cambios, fotos); else await datos.crearProducto({ ...cambios, negocio: f.negocio }, fotos);
       form.reset(); setEditando(null); await cargar();
@@ -138,6 +144,8 @@ function Panel({ usuario, alSalir, refrescar }) {
           </Campo>
           <Campo etiqueta="Descripción (opcional)"><textarea name="descripcion" rows={3} maxLength={500} defaultValue={editando?.descripcion || ''} /></Campo>
           <Campo etiqueta="Precio en quetzales (vacío = “Precio por cotizar”)"><input name="precio" type="number" min="0" step="0.01" inputMode="decimal" defaultValue={editando?.precio ?? ''} /></Campo>
+          <Campo etiqueta="Precio de oferta (opcional; vacío = sin oferta)"><input name="oferta" type="number" min="0" step="0.01" inputMode="decimal" defaultValue={editando?.oferta_precio ?? ''} /></Campo>
+          <Campo etiqueta="La oferta termina el (opcional; vacío = hasta que la quites)"><input name="hasta" type="date" defaultValue={aFecha(editando?.oferta_hasta)} /></Campo>
           <Campo etiqueta={`Fotos (opcional, hasta ${MAX_FOTOS})${editando ? '. Si eliges fotos nuevas, reemplazan las actuales' : ''}`}><input name="foto" type="file" accept="image/*" multiple /></Campo>
           {error && <p role="alert" className="error">{error}</p>}
           <button className="btn" disabled={ocupado}>{editando ? 'Guardar cambios' : 'Publicar'}</button>
@@ -173,7 +181,7 @@ function Panel({ usuario, alSalir, refrescar }) {
           <ul className="mios">
             {mios.map((p) => (
               <li key={p.id}>
-                <span>{p.nombre} <span className="t-small nota">· {p.vendedor.nombre_negocio} · {p.tipo}{p.agotado && ' · Agotado'}</span></span>
+                <span>{p.nombre} <span className="t-small nota">· {p.vendedor.nombre_negocio} · {p.tipo}{p.agotado && ' · Agotado'}{enOferta(p) && ' · En oferta'}</span></span>
                 <span className="mios__acciones">
                   <button className="enlace" onClick={() => { setEditando(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar</button>
                   <button className="enlace" onClick={() => alternar(p)}>{p.agotado ? 'Hay existencias' : 'Marcar agotado'}</button>

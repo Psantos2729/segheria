@@ -10,6 +10,10 @@ const sb = demo ? null : createClient(URL, KEY, { auth: { flowType: 'pkce' } });
 export const MAX_FOTOS = 4;
 export const MAX_PRODUCTOS = 20; // por negocio; el mismo límite está en supabase.sql
 export const MAX_NEGOCIOS = 5;
+/* Oferta temporal: vale si hay precio de oferta, menor al normal, y la fecha de fin (si hay) no ha pasado. */
+export const enOferta = (p) => p.oferta_precio != null && p.precio != null && Number(p.oferta_precio) < Number(p.precio)
+  && (!p.oferta_hasta || new Date(p.oferta_hasta) > new Date());
+export const precioActual = (p) => (enOferta(p) ? p.oferta_precio : p.precio);
 const SIN_DEMO = 'Esto no está disponible en modo demo.';
 
 /* Reduce la foto a 900px en webp antes de subirla (barata para el vendedor y para el catálogo).
@@ -92,7 +96,7 @@ const local = {
 
 /* ---------- Supabase ---------- */
 // El WhatsApp ya no se lee de aquí: solo sale de contactos() si pusiste el código (ver supabase.sql, versiones 7 y 9).
-const COLS = 'id,nombre,descripcion,precio,imagenes,agotado,tipo,vendedor,negocio:negocios(id,nombre,tipo)'; // vendedor = la cuenta dueña
+const COLS = 'id,nombre,descripcion,precio,oferta_precio,oferta_hasta,imagenes,agotado,tipo,vendedor,negocio:negocios(id,nombre,tipo)'; // vendedor = la cuenta dueña
 const haySesion = async () => !!(await sb.auth.getSession()).data.session;
 async function subir(archivos) {
   if (!archivos.length) return [];

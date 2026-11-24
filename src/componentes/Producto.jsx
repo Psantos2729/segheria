@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { negocio, colorTipo } from '../contenido.js';
-import { datos, recientes } from '../lib/datos.js';
+import { datos, recientes, enOferta, precioActual } from '../lib/datos.js';
 import ProfileCard from '../reactbits/ProfileCard/ProfileCard.jsx';
-import { quetzales, Cotizar, abrirChat } from './Catalogo.jsx';
+import { quetzales, Precio, Cotizar, abrirChat } from './Catalogo.jsx';
 
 function Reportar({ id }) {
   const [hecho, setHecho] = useState(false);
@@ -65,7 +65,7 @@ export default function Producto({ params }) {
               <ProfileCard
                 avatarUrl={fotos[foto] || ''}
                 name={p.nombre}
-                title={quetzales(p.precio)}
+                title={enOferta(p) && !p.agotado ? `${quetzales(precioActual(p))} · Oferta` : quetzales(precioActual(p))}
                 handle=""
                 status={p.vendedor.nombre_negocio}
                 statusColor={p.agotado ? '#9CA3AF' : '#22c55e'}
@@ -77,6 +77,7 @@ export default function Producto({ params }) {
                 className="detalle__profile"
               />
               {p.agotado && <span className="etiqueta">Agotado</span>}
+              {!p.agotado && enOferta(p) && <span className="etiqueta etiqueta--oferta">Oferta</span>}
             </div>
             {fotos.length > 1 && (
               <ul className="miniaturas" aria-label="Fotos del producto">
@@ -94,7 +95,8 @@ export default function Producto({ params }) {
           <div className="detalle__info">
             <p className="t-small detalle__tipo">{p.tipo}</p>
             <h1 className="t-head">{p.nombre}</h1>
-            <p className="detalle__precio serif">{quetzales(p.precio)}</p>
+            <Precio p={p} className="detalle__precio serif" />
+            {enOferta(p) && p.oferta_hasta && <p className="t-small nota">Oferta hasta el {new Date(p.oferta_hasta).toLocaleDateString('es-GT', { day: 'numeric', month: 'long' })}.</p>}
             {p.descripcion && <p className="detalle__desc">{p.descripcion}</p>}
             <dl className="detalle__datos">
               <div><dt>Vende</dt><dd><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a></dd></div>

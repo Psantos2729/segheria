@@ -241,3 +241,9 @@ end $$;
 alter table profiles drop constraint profiles_torre_check;
 alter table profiles add constraint profiles_torre_check check (torre between 1 and 7);
 
+
+-- ---------- Versión 10: ofertas temporales (corre después de la versión 9; pega y corre solo desde aquí) ----------
+-- oferta_precio = precio rebajado; oferta_hasta = último momento de la oferta (vacío = hasta que el vendedor la quite).
+alter table productos add column oferta_precio numeric check (oferta_precio >= 0);
+alter table productos add column oferta_hasta timestamptz;
+grant insert (oferta_precio, oferta_hasta), update (oferta_precio, oferta_hasta) on productos to authenticated;

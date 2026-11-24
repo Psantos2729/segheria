@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
 import { tipos, colorTipo } from '../contenido.js';
-import { datos, demo, recientes } from '../lib/datos.js';
+import { datos, demo, recientes, enOferta, precioActual } from '../lib/datos.js';
 import Titulo from './Titulo.jsx';
 import SpotlightCard from '../reactbits/SpotlightCard/SpotlightCard.jsx';
 import CountUp from '../reactbits/CountUp/CountUp.jsx';
 
 export const quetzales = (n) => (n == null ? 'Precio por cotizar' : `Q${Number(n).toLocaleString('es-GT')}`);
 export const waUrl = (p) => `https://wa.me/502${p.vendedor.whatsapp}?text=${encodeURIComponent(
-  `Hola, vi "${p.nombre}" en Catálogo Segheria y quiero cotizarlo${p.precio != null ? ` (${quetzales(p.precio)})` : ''}.`)}`;
+  `Hola, vi "${p.nombre}" en Catálogo Segheria y quiero cotizarlo${p.precio != null ? ` (${quetzales(precioActual(p))}${enOferta(p) ? ', en oferta' : ''})` : ''}.`)}`;
+// Precio con la oferta: el normal tachado y el rebajado al lado.
+export const Precio = ({ p, className }) => (enOferta(p)
+  ? <p className={className}><s className="precio--antes">{quetzales(p.precio)}</s> <span className="precio--oferta">{quetzales(p.oferta_precio)}</span></p>
+  : <p className={className}>{quetzales(p.precio)}</p>);
 const pedirCodigo = () => window.dispatchEvent(new Event('pedir-codigo'));
 // Sin el código de los condóminos no llega el WhatsApp: el botón pide el código en vez de abrir el chat.
 export const Cotizar = ({ p }) => (p.vendedor.whatsapp
@@ -56,12 +60,13 @@ export default function Catalogo({ params }) {
                 ? <img src={p.imagenes[0]} alt="" loading="lazy" />
                 : <span className="producto__sin serif" style={{ background: colorTipo[p.tipo] }}>{p.nombre[0]}</span>}
               {p.agotado && <span className="etiqueta">Agotado</span>}
+              {!p.agotado && enOferta(p) && <span className="etiqueta etiqueta--oferta">Oferta</span>}
               {p.imagenes.length > 1 && <span className="etiqueta etiqueta--fotos">{p.imagenes.length} fotos</span>}
             </a>
             <div className="producto__cuerpo">
               <p className="t-small nota">{p.tipo}</p>
               <h2 className="t-lead serif"><a className="producto__enlace" href={`#/producto?id=${p.id}`}>{p.nombre}</a></h2>
-              <p className="producto__precio">{quetzales(p.precio)}</p>
+              <Precio p={p} className="producto__precio" />
               {p.descripcion && <p className="nota producto__desc">{p.descripcion}</p>}
               <p className="t-small nota"><a href={`#/catalogo?vendedor=${p.vendedor_id}`}>{p.vendedor.nombre_negocio}</a></p>
               <div className="producto__acciones">

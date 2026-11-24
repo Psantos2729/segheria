@@ -294,3 +294,8 @@ p { text-wrap: pretty; }
 /* Pantalla del código de los condóminos */
 .codigo { width: min(26rem, calc(100vw - 2rem)); border: 0; margin: auto; box-shadow: 0 20px 60px rgb(10 8 9 / .35); }
 .codigo::backdrop { background: rgb(10 8 9 / .7); }
+
+/* ---------- Ofertas ---------- */
+.etiqueta--oferta { background: var(--vino); }
+.precio--antes { color: var(--nota); font-weight: 400; margin-right: .25rem; }
+.precio--oferta { color: var(--vino); }
