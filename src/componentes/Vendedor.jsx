@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { tipos } from '../contenido.js';
+import { colorTipo } from '../contenido.js';
+import { Precio } from './Catalogo.jsx';
 import { datos, demo, enOferta, MAX_FOTOS, MAX_NEGOCIOS } from '../lib/datos.js';
 import Titulo from './Titulo.jsx';
 
@@ -121,6 +123,11 @@ function Panel({ usuario, alSalir, refrescar }) {
     try { await datos.borrarNegocio(n.id); setNegEditando(null); setEditando(null); await refrescar(); await cargar(); }
     catch { setFallo('No se pudo borrar el negocio. Revisa tu conexión o vuelve a entrar.'); }
   };
+  // Abre el formulario con el producto; con "oferta" salta directo al campo del precio de oferta.
+  const editar = (p, campo) => {
+    setEditando(p); window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (campo) setTimeout(() => document.querySelector(`form [name="${campo}"]`)?.focus({ preventScroll: true }), 50);
+  };
   const alternar = (p) => intentar(() => datos.actualizarProducto(p.id, { agotado: !p.agotado }));
   const borrar = (p) => {
     if (confirm(`¿Borrar "${p.nombre}"? No se puede deshacer.`)) intentar(async () => { await datos.borrarProducto(p.id); if (editando?.id === p.id) setEditando(null); });
@@ -132,7 +139,7 @@ function Panel({ usuario, alSalir, refrescar }) {
       {!aprobado && <p className="aviso">Tu cuenta está en revisión. Cuando la aprobemos podrás publicar productos.</p>}
       {aprobado && (
         <form className="formulario hoja" onSubmit={publicar} key={editando?.id || 'nuevo'}>
-          <h2 className="t-head">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
+          <h2 className="t-head">{editando ? `Editar: ${editando.nombre}` : 'Nuevo producto'}</h2>
           {!editando && (
             <Campo etiqueta="Negocio">
               <select name="negocio" required>{negocios.map((n) => <option key={n.id} value={n.id}>{n.nombre}</option>)}</select>
@@ -144,8 +151,10 @@ function Panel({ usuario, alSalir, refrescar }) {
           </Campo>
           <Campo etiqueta="Descripción (opcional)"><textarea name="descripcion" rows={3} maxLength={500} defaultValue={editando?.descripcion || ''} /></Campo>
           <Campo etiqueta="Precio en quetzales (vacío = “Precio por cotizar”)"><input name="precio" type="number" min="0" step="0.01" inputMode="decimal" defaultValue={editando?.precio ?? ''} /></Campo>
-          <Campo etiqueta="Precio de oferta (opcional; vacío = sin oferta)"><input name="oferta" type="number" min="0" step="0.01" inputMode="decimal" defaultValue={editando?.oferta_precio ?? ''} /></Campo>
-          <Campo etiqueta="La oferta termina el (opcional; vacío = hasta que la quites)"><input name="hasta" type="date" defaultValue={aFecha(editando?.oferta_hasta)} /></Campo>
+          <fieldset className="oferta"><legend>Oferta temporal</legend>
+          <Campo etiqueta="Precio de oferta (vacío = sin oferta)"><input name="oferta" type="number" min="0" step="0.01" inputMode="decimal" defaultValue={editando?.oferta_precio ?? ''} /></Campo>
+          <Campo etiqueta="La oferta termina el (vacío = hasta que la quites)"><input name="hasta" type="date" defaultValue={aFecha(editando?.oferta_hasta)} /></Campo>
+          </fieldset>
           <Campo etiqueta={`Fotos (opcional, hasta ${MAX_FOTOS})${editando ? '. Si eliges fotos nuevas, reemplazan las actuales' : ''}`}><input name="foto" type="file" accept="image/*" multiple /></Campo>
           {error && <p role="alert" className="error">{error}</p>}
           <button className="btn" disabled={ocupado}>{editando ? 'Guardar cambios' : 'Publicar'}</button>
@@ -178,12 +187,23 @@ function Panel({ usuario, alSalir, refrescar }) {
           <h2 className="t-head panel__sub">Tus productos</h2>
           {fallo && <p role="alert" className="error">{fallo}</p>}
           {!mios.length && !fallo && <p className="nota">Todavía no has publicado nada.</p>}
-          <ul className="mios">
+          <ul className="misprod">
             {mios.map((p) => (
-              <li key={p.id}>
-                <span>{p.nombre} <span className="t-small nota">· {p.vendedor.nombre_negocio} · {p.tipo}{p.agotado && ' · Agotado'}{enOferta(p) && ' · En oferta'}</span></span>
+              <li key={p.id} className={`misprod__item${editando?.id === p.id ? ' misprod__item--activo' : ''}`}>
+                <span className="misprod__foto">
+                  {p.imagenes[0] ? <img src={p.imagenes[0]} alt="" loading="lazy" />
+                    : <span className="serif" style={{ background: colorTipo[p.tipo] }}>{p.nombre[0]}</span>}
+                  {enOferta(p) && <span className="etiqueta etiqueta--oferta">Oferta</span>}
+                </span>
+                <div className="misprod__datos">
+                  <strong>{p.nombre}</strong>
+                  <Precio p={p} className="misprod__precio" />
+                  <span className="t-small nota">{p.vendedor.nombre_negocio} · {p.tipo}{p.agotado && ' · Agotado'}
+                    {enOferta(p) && p.oferta_hasta && ` · Oferta hasta ${new Date(p.oferta_hasta).toLocaleDateString('es-GT', { day: 'numeric', month: 'short' })}`}</span>
+                </div>
                 <span className="mios__acciones">
-                  <button className="enlace" onClick={() => { setEditando(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar</button>
+                  <button className="btn btn--chico" onClick={() => editar(p, 'oferta')}>{enOferta(p) ? 'Cambiar oferta' : 'Hacer oferta'}</button>
+                  <button className="enlace" onClick={() => editar(p)}>Editar</button>
                   <button className="enlace" onClick={() => alternar(p)}>{p.agotado ? 'Hay existencias' : 'Marcar agotado'}</button>
                   <button className="enlace" onClick={() => borrar(p)}>Borrar</button>
                 </span>
